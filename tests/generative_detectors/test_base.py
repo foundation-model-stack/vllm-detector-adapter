@@ -1,4 +1,5 @@
 # Standard
+from typing import Optional
 from dataclasses import dataclass
 import asyncio
 
@@ -15,6 +16,9 @@ MODEL_NAME = "openai-community/gpt2"
 CHAT_TEMPLATE = "Dummy chat template for testing {}"
 BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 
+@dataclass
+class MockTokenizer:
+    type: Optional[str] = None
 
 @dataclass
 class MockHFConfig:
@@ -23,6 +27,7 @@ class MockHFConfig:
 
 @dataclass
 class MockModelConfig:
+    task = "generate"
     tokenizer = MODEL_NAME
     trust_remote_code = False
     tokenizer_mode = "auto"
@@ -30,7 +35,13 @@ class MockModelConfig:
     tokenizer_revision = None
     embedding_mode = False
     multimodal_config = MultiModalConfig()
+    diff_sampling_param: Optional[dict] = None
     hf_config = MockHFConfig()
+    logits_processor_pattern = None
+    allowed_local_media_path: str = ""
+
+    def get_diff_sampling_param(self):
+        return self.diff_sampling_param or {}
 
 
 @dataclass
@@ -42,6 +53,7 @@ class MockEngine:
 async def _async_serving_detection_completion_init():
     """Initialize a chat completion base with string templates"""
     engine = MockEngine()
+    engine.errored = False
     model_config = await engine.get_model_config()
 
     detection_completion = ChatCompletionDetectionBase(
@@ -52,6 +64,7 @@ async def _async_serving_detection_completion_init():
         base_model_paths=BASE_MODEL_PATHS,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,
+        chat_template_content_format="auto",
         lora_modules=None,
         prompt_adapters=None,
         request_logger=None,

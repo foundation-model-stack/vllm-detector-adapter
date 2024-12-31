@@ -1,4 +1,5 @@
 # Standard
+from typing import Optional
 from dataclasses import dataclass
 from http import HTTPStatus
 from unittest.mock import patch
@@ -32,6 +33,9 @@ MODEL_NAME = "ibm-granite/granite-guardian"  # Example granite-guardian model
 CHAT_TEMPLATE = "Dummy chat template for testing {}"
 BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 
+@dataclass
+class MockTokenizer:
+    type: Optional[str] = None
 
 @dataclass
 class MockHFConfig:
@@ -40,6 +44,7 @@ class MockHFConfig:
 
 @dataclass
 class MockModelConfig:
+    task = "generate"
     tokenizer = MODEL_NAME
     trust_remote_code = False
     tokenizer_mode = "auto"
@@ -47,7 +52,13 @@ class MockModelConfig:
     tokenizer_revision = None
     embedding_mode = False
     multimodal_config = MultiModalConfig()
+    diff_sampling_param: Optional[dict] = None
     hf_config = MockHFConfig()
+    logits_processor_pattern = None
+    allowed_local_media_path: str = ""
+
+    def get_diff_sampling_param(self):
+        return self.diff_sampling_param or {}
 
 
 @dataclass
@@ -59,6 +70,7 @@ class MockEngine:
 async def _granite_guardian_init():
     """Initialize a granite guardian"""
     engine = MockEngine()
+    engine.errored = False
     model_config = await engine.get_model_config()
 
     granite_guardian = GraniteGuardian(
@@ -69,6 +81,7 @@ async def _granite_guardian_init():
         base_model_paths=BASE_MODEL_PATHS,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,
+        chat_template_content_format="auto",
         lora_modules=None,
         prompt_adapters=None,
         request_logger=None,
