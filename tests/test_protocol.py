@@ -54,13 +54,8 @@ def test_detection_to_completion_request_unknown_params():
         detector_params={"moo": 2},
     )
     request = chat_request.to_chat_completion_request(MODEL_NAME)
-    from importlib import metadata
-    if metadata.version("vllm") >= "0.6.5":
-        # As of vllm >= 0.6.5, extra fields are allowed
-        assert type(request) == ChatCompletionRequest
-    else:
-        assert type(request) == ErrorResponse
-        assert request.code == HTTPStatus.BAD_REQUEST.value
+    # As of vllm >= 0.6.5, extra fields are allowed
+    assert type(request) == ChatCompletionRequest
 
 
 def test_response_from_completion_response():
