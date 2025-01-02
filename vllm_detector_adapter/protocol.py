@@ -68,9 +68,8 @@ class ChatDetectionRequest(BaseModel):
         ]
 
         # Try to pass all detector_params through as additional parameters to chat completions.
-        # This will error if extra unallowed parameters are included. We do not try to provide
-        # validation or changing of parameters here to not be dependent on chat completion API
-        # changes
+        # We do not try to provide validation or changing of parameters here to not be dependent
+        # on chat completion API changes. As of vllm >= 0.6.5, extra fields are allowed
         try:
             return ChatCompletionRequest(
                 messages=messages,
