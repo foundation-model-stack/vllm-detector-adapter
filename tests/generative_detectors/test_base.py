@@ -1,6 +1,6 @@
 # Standard
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional
 import asyncio
 
 # Third Party
@@ -16,9 +16,11 @@ MODEL_NAME = "openai-community/gpt2"
 CHAT_TEMPLATE = "Dummy chat template for testing {}"
 BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 
+
 @dataclass
 class MockTokenizer:
     type: Optional[str] = None
+
 
 @dataclass
 class MockHFConfig:

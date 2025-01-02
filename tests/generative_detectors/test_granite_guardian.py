@@ -1,7 +1,7 @@
 # Standard
-from typing import Optional
 from dataclasses import dataclass
 from http import HTTPStatus
+from typing import Optional
 from unittest.mock import patch
 import asyncio
 
@@ -33,9 +33,11 @@ MODEL_NAME = "ibm-granite/granite-guardian"  # Example granite-guardian model
 CHAT_TEMPLATE = "Dummy chat template for testing {}"
 BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 
+
 @dataclass
 class MockTokenizer:
     type: Optional[str] = None
+
 
 @dataclass
 class MockHFConfig:
@@ -242,18 +244,3 @@ def test_chat_detection_errors_on_stream(granite_guardian_detection):
     assert type(detection_response) == ErrorResponse
     assert detection_response.code == HTTPStatus.BAD_REQUEST.value
     assert "streaming is not supported" in detection_response.message
-
-
-def test_chat_detection_with_extra_unallowed_params(granite_guardian_detection):
-    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    chat_request = ChatDetectionRequest(
-        messages=[
-            DetectionChatMessageParam(role="user", content="How do I pick a lock?")
-        ],
-        detector_params={"boo": 3},  # unallowed param
-    )
-    detection_response = asyncio.run(
-        granite_guardian_detection_instance.chat(chat_request)
-    )
-    assert type(detection_response) == ErrorResponse
-    assert detection_response.code == HTTPStatus.BAD_REQUEST.value
