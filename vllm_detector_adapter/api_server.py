@@ -10,6 +10,7 @@ from starlette.datastructures import State
 from vllm.config import ModelConfig
 from vllm.engine.arg_utils import nullable_str
 from vllm.engine.protocol import EngineClient
+from vllm.entrypoints.chat_utils import load_chat_template
 from vllm.entrypoints.launcher import serve_http
 from vllm.entrypoints.logger import RequestLogger
 from vllm.entrypoints.openai import api_server
@@ -61,6 +62,16 @@ def init_app_state_with_detectors(
         BaseModelPath(name=name, model_path=args.model) for name in served_model_names
     ]
 
+    resolved_chat_template = load_chat_template(args.chat_template)
+    # Post-0.6.6 incoming change for vllm - ref. https://github.com/vllm-project/vllm/pull/11660
+    # Will be included after an official release includes this refactor
+    # state.openai_serving_models = OpenAIServingModels(
+    #     model_config=model_config,
+    #     base_model_paths=base_model_paths,
+    #     lora_modules=args.lora_modules,
+    #     prompt_adapters=args.prompt_adapters,
+    # )
+
     # Use vllm app state init
     api_server.init_app_state(engine_client, model_config, state, args)
 
@@ -72,15 +83,18 @@ def init_app_state_with_detectors(
         args.output_template,
         engine_client,
         model_config,
-        base_model_paths,
+        base_model_paths,  # Not present in post-0.6.6 incoming change
+        # state.openai_serving_models, # Post-0.6.6 incoming change
         args.response_role,
-        lora_modules=args.lora_modules,
-        prompt_adapters=args.prompt_adapters,
+        lora_modules=args.lora_modules,  # Not present in post-0.6.6 incoming change
+        prompt_adapters=args.prompt_adapters,  # Not present in post-0.6.6 incoming change
         request_logger=request_logger,
-        chat_template=args.chat_template,
+        chat_template=resolved_chat_template,
+        chat_template_content_format=args.chat_template_content_format,
         return_tokens_as_token_ids=args.return_tokens_as_token_ids,
         enable_auto_tools=args.enable_auto_tool_choice,
         tool_parser=args.tool_call_parser,
+        enable_prompt_tokens_details=args.enable_prompt_tokens_details,
     )
 
 
