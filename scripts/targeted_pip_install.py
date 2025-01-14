@@ -25,6 +25,7 @@ class RequirementType(Enum):
     requirement_file = 1
     package_path = 2
 
+
 def get_pip_parsed_requirements(file_path):
     """This function uses pip's function to process the requirements file
     and replace the environment variable like GIT_TOKEN automatically
@@ -171,6 +172,7 @@ def get_deps_install_list(
     # where later on contains details about installation via git (vcs)
     return dep_install_dict
 
+
 def get_already_installed_deps():
     """Function to get the list of dependencies to a file"""
 
@@ -195,6 +197,7 @@ def get_already_installed_deps():
         dep_dict[dep["name"]] = dep["version"]
     return dep_dict
 
+
 def check_conflict(installed_deps_dict, dep_install_dict):
     """Check if the installed deps are also referred in report as libraries to be installed"""
 
@@ -205,6 +208,7 @@ def check_conflict(installed_deps_dict, dep_install_dict):
             duplicate_lib_dict[dep_name] = installed_deps_dict[dep_name]
 
     return duplicate_lib_dict
+
 
 def targeted_installation(
     dep_install_dict, target_folder_name, unknown_args: Optional[List[str]] = None
@@ -407,4 +411,3 @@ if __name__ == "__main__":
     if args.delete_installed_deps:
         print("Deleting pre-installed duplicate libraries as requested")
         delete_preinstalled_libs(duplicate_lib_dict)
-
