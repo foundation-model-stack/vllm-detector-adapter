@@ -12,9 +12,9 @@ from vllm.entrypoints.openai.protocol import (
 )
 
 ##### [FMS] Detection API types
-# NOTE: This currently works with the /chat detection endpoint
+# Endpoints are as documented https://foundation-model-stack.github.io/fms-guardrails-orchestrator/?urls.primaryName=Detector+API#/
 
-######## Contents Detection types
+######## Contents Detection types (currently unused) for the /text/contents detection endpoint
 
 
 class ContentsDetectionRequest(BaseModel):
@@ -35,7 +35,7 @@ class ContentsDetectionResponseObject(BaseModel):
     score: float = Field(examples=[0.5])
 
 
-######## Chat Detection types
+######## Chat Detection types for the /text/chat detection endpoint
 
 
 class DetectionChatMessageParam(TypedDict):
@@ -83,6 +83,53 @@ class ChatDetectionRequest(BaseModel):
                 type="BadRequestError",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
+
+
+######## Context Analysis Detection types for the /text/context/docs detection endpoint
+
+
+class ContextAnalysisRequest(BaseModel):
+    # Content to run detection on
+    content: str = Field(examples=["What is a moose?"])
+    # Type of context - url or docs (for text documents)
+    context_type: str = Field(examples=["docs", "url"])
+    # Context of type context_type to run detection on
+    context: List[str] = Field(
+        examples=[
+            "https://en.wikipedia.org/wiki/Moose",
+            "https://www.nwf.org/Educational-Resources/Wildlife-Guide/Mammals/Moose",
+        ]
+    )
+    # Parameters to pass through to chat completions, optional
+    detector_params: Optional[Dict] = {}
+
+    def to_chat_completion_request(self, model_name: str):
+        """Function to convert context analysis request to openai chat completion request"""
+        # Can only process one context currently - TODO: validate
+        # For now, context_type is ignored but is required for the detection endpoint
+        # TODO: 'context' is not a generally supported 'role' in the openAI API
+        messages = [
+            {"role": "context", "content": self.context[0]},
+            {"role": "assistant", "content": self.content},
+        ]
+
+        # Try to pass all detector_params through as additional parameters to chat completions
+        # without additional validation or parameter changes as in ChatDetectionRequest above
+        try:
+            return ChatCompletionRequest(
+                messages=messages,
+                model=model_name,
+                **self.detector_params,
+            )
+        except ValidationError as e:
+            return ErrorResponse(
+                message=repr(e.errors()[0]),
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+
+
+######## General modified response(s) for chat completions
 
 
 class ChatDetectionResponseObject(BaseModel):

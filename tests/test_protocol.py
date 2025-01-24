@@ -15,6 +15,7 @@ from vllm.entrypoints.openai.protocol import (
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ChatDetectionResponse,
+    ContextAnalysisRequest,
     DetectionChatMessageParam,
 )
 
@@ -22,8 +23,9 @@ MODEL_NAME = "org/model-name"
 
 ### Tests #####################################################################
 
+#### Chat detection request tests
 
-def test_detection_to_completion_request():
+def test_chat_detection_to_completion_request():
     chat_request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
@@ -46,7 +48,7 @@ def test_detection_to_completion_request():
     assert request.n == 3
 
 
-def test_detection_to_completion_request_unknown_params():
+def test_chat_detection_to_completion_request_unknown_params():
     chat_request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(role="user", content="How do I search for moose?")
@@ -57,6 +59,30 @@ def test_detection_to_completion_request_unknown_params():
     # As of vllm >= 0.6.5, extra fields are allowed
     assert type(request) == ChatCompletionRequest
 
+
+#### Context analysis detection request tests
+
+def test_context_detection_to_completion_request():
+    content = "Where do I find geese?"
+    context_doc = "Geese can be found in lakes, ponds, and rivers"
+    context_request = ContextAnalysisRequest(
+        content=content,
+        context_type="docs",
+        context=[context_doc],
+        detector_params={"n": 2, "temperature": 0.3},
+    )
+    request = context_request.to_chat_completion_request(MODEL_NAME)
+    assert type(request) == ChatCompletionRequest
+    assert request.messages[0]["role"] == "context"
+    assert request.messages[0]["content"] == context_doc
+    assert request.messages[1]["role"] == "assistant"
+    assert request.messages[1]["content"] == content
+    assert request.model == MODEL_NAME
+    assert request.temperature == 0.3
+    assert request.n == 2
+
+
+#### General response tests
 
 def test_response_from_completion_response():
     # Simplified response without logprobs since not needed for this method
