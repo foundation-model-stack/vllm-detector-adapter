@@ -188,6 +188,28 @@ async def create_context_doc_detection(
     return JSONResponse({})
 
 
+@router.post("/api/v1/text/context/doc")
+async def create_context_doc_detection(
+    request: ContextAnalysisRequest, raw_request: Request
+):
+    """Support context analysis endpoint"""
+
+    detector_response = await chat_detection(raw_request).context_analyze(
+        request, raw_request
+    )
+
+    if isinstance(detector_response, ErrorResponse):
+        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
+        return JSONResponse(
+            content=detector_response.model_dump(), status_code=detector_response.code
+        )
+
+    elif isinstance(detector_response, ChatDetectionResponse):
+        return JSONResponse(content=detector_response.model_dump())
+
+    return JSONResponse({})
+
+
 def add_chat_detection_params(parser):
     parser.add_argument(
         "--task-template",

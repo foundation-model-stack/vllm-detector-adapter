@@ -24,6 +24,7 @@ MODEL_NAME = "org/model-name"
 
 #### Chat detection request tests
 
+
 def test_chat_detection_to_completion_request():
     chat_request = ChatDetectionRequest(
         messages=[
