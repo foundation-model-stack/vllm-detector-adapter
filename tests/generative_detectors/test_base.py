@@ -5,7 +5,7 @@ import asyncio
 
 # Third Party
 from vllm.config import MultiModalConfig
-from vllm.entrypoints.openai.serving_engine import BaseModelPath
+from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
 import jinja2
 import pytest_asyncio
 
@@ -57,18 +57,21 @@ async def _async_serving_detection_completion_init():
     engine = MockEngine()
     engine.errored = False
     model_config = await engine.get_model_config()
+    models = OpenAIServingModels(
+        engine_client=engine,
+        model_config=model_config,
+        base_model_paths=BASE_MODEL_PATHS,
+    )
 
     detection_completion = ChatCompletionDetectionBase(
         task_template="hello {{user_text}}",
         output_template="bye {{text}}",
         engine_client=engine,
         model_config=model_config,
-        base_model_paths=BASE_MODEL_PATHS,
+        models=models,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,
         chat_template_content_format="auto",
-        lora_modules=None,
-        prompt_adapters=None,
         request_logger=None,
     )
     return detection_completion

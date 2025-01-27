@@ -127,7 +127,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         """Function used to call chat detection and provide a /chat response"""
 
         # Fetch model name from super class: OpenAIServing
-        model_name = self.base_model_paths[0].name
+        model_name = self.models.base_model_paths[0].name
 
         # Apply task template if it exists
         if self.task_template:

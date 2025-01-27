@@ -17,7 +17,7 @@ from vllm.entrypoints.openai.protocol import (
     ErrorResponse,
     UsageInfo,
 )
-from vllm.entrypoints.openai.serving_engine import BaseModelPath
+from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
 import pytest
 import pytest_asyncio
 
@@ -74,18 +74,21 @@ async def _granite_guardian_init():
     engine = MockEngine()
     engine.errored = False
     model_config = await engine.get_model_config()
+    models = OpenAIServingModels(
+        engine_client=engine,
+        model_config=model_config,
+        base_model_paths=BASE_MODEL_PATHS,
+    )
 
     granite_guardian = GraniteGuardian(
         task_template=None,
         output_template=None,
         engine_client=engine,
         model_config=model_config,
-        base_model_paths=BASE_MODEL_PATHS,
+        models=models,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,
         chat_template_content_format="auto",
-        lora_modules=None,
-        prompt_adapters=None,
         request_logger=None,
     )
     return granite_guardian
