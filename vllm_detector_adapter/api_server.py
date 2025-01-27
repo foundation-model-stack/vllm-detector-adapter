@@ -1,5 +1,6 @@
 # Standard
 from argparse import Namespace
+import inspect
 import signal
 import socket
 
@@ -41,7 +42,7 @@ def chat_detection(
     return request.app.state.detectors_serving_chat_detection
 
 
-def init_app_state_with_detectors(
+async def init_app_state_with_detectors(
     engine_client: EngineClient,
     model_config: ModelConfig,
     state: State,
@@ -72,7 +73,11 @@ def init_app_state_with_detectors(
     )
 
     # Use vllm app state init
-    api_server.init_app_state(engine_client, model_config, state, args)
+    # init_app_state became async in https://github.com/vllm-project/vllm/pull/11727
+    # ref. https://github.com/opendatahub-io/vllm-tgis-adapter/pull/207
+    maybe_coroutine = api_server.init_app_state(engine_client, model_config, state, args)
+    if inspect.isawaitable(maybe_coroutine):
+        await maybe_coroutine
 
     generative_detector_class = generative_detectors.MODEL_CLASS_MAP[args.model_type]
 
@@ -114,7 +119,8 @@ async def run_server(args, **uvicorn_kwargs) -> None:
         app = api_server.build_app(args)
 
         model_config = await engine_client.get_model_config()
-        init_app_state_with_detectors(engine_client, model_config, app.state, args)
+        # ref. https://github.com/opendatahub-io/vllm-tgis-adapter/pull/207
+        await init_app_state_with_detectors(engine_client, model_config, app.state, args)
 
         temp_socket.close()
 
