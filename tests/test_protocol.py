@@ -25,6 +25,7 @@ MODEL_NAME = "org/model-name"
 
 #### Chat detection request tests
 
+
 def test_chat_detection_to_completion_request():
     chat_request = ChatDetectionRequest(
         messages=[
@@ -62,6 +63,7 @@ def test_chat_detection_to_completion_request_unknown_params():
 
 #### Context analysis detection request tests
 
+
 def test_context_detection_to_completion_request():
     content = "Where do I find geese?"
     context_doc = "Geese can be found in lakes, ponds, and rivers"
@@ -83,6 +85,7 @@ def test_context_detection_to_completion_request():
 
 
 #### General response tests
+
 
 def test_response_from_completion_response():
     # Simplified response without logprobs since not needed for this method

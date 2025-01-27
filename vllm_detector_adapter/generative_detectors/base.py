@@ -14,7 +14,11 @@ import torch
 
 # Local
 from vllm_detector_adapter.logging import init_logger
-from vllm_detector_adapter.protocol import ChatDetectionRequest, ChatDetectionResponse
+from vllm_detector_adapter.protocol import (
+    ChatDetectionRequest,
+    ChatDetectionResponse,
+    ContextAnalysisRequest,
+)
 
 logger = init_logger(__name__)
 
@@ -185,3 +189,11 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         return ChatDetectionResponse.from_chat_completion_response(
             chat_response, scores, self.DETECTION_TYPE
         )
+
+    async def context_analyze(
+        self,
+        request: ContextAnalysisRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[ChatDetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /context/doc response"""
+        pass
