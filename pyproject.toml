@@ -13,7 +13,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "vllm>=0.6.5"
+    "vllm>=0.7.0"
 ]
 
 [project.optional-dependencies]
