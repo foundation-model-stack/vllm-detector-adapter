@@ -103,6 +103,11 @@ class ContextAnalysisRequest(BaseModel):
     # Parameters to pass through to chat completions, optional
     detector_params: Optional[Dict] = {}
 
+    # NOTE: currently there is no general to_chat_completion_request
+    # since the chat completion roles and messages are fairly tied
+    # to particular models' risk definitions. If a general strategy
+    # is identified, it can be implemented here.
+
 
 ######## General modified response(s) for chat completions
 

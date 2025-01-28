@@ -29,9 +29,13 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     SAFE_TOKEN = "No"
     UNSAFE_TOKEN = "Yes"
 
-    def preprocess_chat_request(
-        self, request: ChatDetectionRequest
-    ) -> Union[ChatDetectionRequest, ErrorResponse]:
+    # Risks associated with context analysis
+    PROMPT_CONTEXT_ANALYSIS_RISKS = ["relevance"]
+    RESPONSE_CONTEXT_ANALYSIS_RISKS = ["groundedness"]
+
+    def preprocess(
+        self, request: Union[ChatDetectionRequest, ContextAnalysisRequest]
+    ) -> Union[ChatDetectionRequest, ContextAnalysisRequest, ErrorResponse]:
         """Granite guardian specific parameter updates for risk name and risk definition"""
         # Validation that one of the 'defined' risks is requested will be
         # done through the chat template on each request. Errors will
@@ -55,40 +59,60 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         return request
 
-    async def context_analyze(
-        self,
-        request: ContextAnalysisRequest,
-        raw_request: Optional[Request] = None,
-    ) -> Union[ChatDetectionResponse, ErrorResponse]:
-        """Function used to call chat detection and provide a /context/doc response"""
-        # # Fetch model name from super class: OpenAIServing
-        # model_name = self.models.base_model_paths[0].name
+    def preprocess_chat_request(
+        self, request: ChatDetectionRequest
+    ) -> Union[ChatDetectionRequest, ErrorResponse]:
+        """Granite guardian chat request preprocess is just detector parameter updates"""
+        return self.preprocess(request)
 
-        # # Apply task template if it exists
-        # if self.task_template:
-        #     request = self.apply_task_template(request)
-        #     if isinstance(request, ErrorResponse):
-        #         # Propagate any request problems that will not allow
-        #         # task template to be applied
-        #         return request
+    def request_to_chat_completion_request(
+        self, request: ContextAnalysisRequest, model_name: str
+    ) -> Union[ChatCompletionRequest, ErrorResponse]:
 
-        # # Much of this chat completions processing is similar to the
-        # # .chat case and could be refactored if reused further in the future
-        pass
+        risk_name = None
+        # Use risk name to determine message format
+        if guardian_config := request.detector_params["chat_template_kwargs"][
+            "guardian_config"
+        ]:
+            risk_name = guardian_config["risk_name"]
+        else:
+            return ErrorResponse(
+                message="No risk_name for context analysis",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
 
-    def to_chat_completion_request(self, model_name: str):
-        """Function to convert context analysis request to openai chat completion request"""
-        # Can only process one context currently - TODO: validate
-        # For now, context_type is ignored but is required for the detection endpoint
-        # TODO: 'context' is not a generally supported 'role' in the openAI API
-        # TODO: messages are much more specific to risk type
-        messages = [
-            {"role": "context", "content": self.context[0]},
-            {"role": "assistant", "content": self.content},
-        ]
+        if len(request.context) > 1:
+            # The API supports more than one context text but currently chat completions
+            # will only take one context
+            logger.warning("More than one context provided. Only the last will be used")
+        context_text = request.context[-1]
+        content = request.content
+        # The "context" role is not an officially support OpenAI role
+        if risk_name in self.RESPONSE_CONTEXT_ANALYSIS_RISKS:
+            # Response analysis
+            messages = [
+                {"role": "context", "content": context_text},
+                {"role": "assistant", "content": content},
+            ]
+        elif risk_name in self.PROMPT_CONTEXT_ANALYSIS_RISKS:
+            # Prompt analysis
+            messages = [
+                {"role": "user", "content": content},
+                {"role": "context", "content": context_text},
+            ]
+        else:
+            # Return error if risks are not appropriate [or could default to one of the above analyses]
+            return ErrorResponse(
+                message="risk_name {} is not compatible with context analysis".format(
+                    risk_name
+                ),
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
 
         # Try to pass all detector_params through as additional parameters to chat completions
-        # without additional validation or parameter changes as in ChatDetectionRequest above
+        # without additional validation or parameter changes, similar to ChatDetectionRequest processing
         try:
             return ChatCompletionRequest(
                 messages=messages,
@@ -101,3 +125,77 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 type="BadRequestError",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
+
+    async def context_analyze(
+        self,
+        request: ContextAnalysisRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[ChatDetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /context/doc response"""
+        # Fetch model name from super class: OpenAIServing
+        model_name = self.models.base_model_paths[0].name
+
+        # Apply task template if it exists
+        if self.task_template:
+            request = self.apply_task_template(request)
+            if isinstance(request, ErrorResponse):
+                # Propagate any request problems that will not allow
+                # task template to be applied
+                return request
+
+        # Make model-dependent adjustments for the request
+        request = self.preprocess(request)
+
+        # Since particular chat messages are dependent on Granite Guardian risk definitions,
+        # the processing is done here rather than in a separate, general to_chat_completion_request
+        # for all context analysis requests.
+        chat_completion_request = self.request_to_chat_completion_request(
+            request, model_name
+        )
+        if isinstance(chat_completion_request, ErrorResponse):
+            # Propagate any request problems
+            return chat_completion_request
+
+        # Much of this chat completions processing is similar to the
+        # .chat case and could be refactored if reused further in the future
+
+        # Return an error for streaming for now. Since the detector API is unary,
+        # results would not be streamed back anyway. The chat completion response
+        # object would look different, and content would have to be aggregated.
+        if chat_completion_request.stream:
+            return ErrorResponse(
+                message="streaming is not supported for the detector",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+
+        # Manually set logprobs to True to calculate score later on
+        # NOTE: this is supposed to override if user has set logprobs to False
+        # or left logprobs as the default False
+        chat_completion_request.logprobs = True
+        # NOTE: We need top_logprobs to be enabled to calculate score appropriately
+        # We override this and not allow configuration at this point. In future, we may
+        # want to expose this configurable to certain range.
+        chat_completion_request.top_logprobs = 5
+
+        logger.debug("Request to chat completion: %s", chat_completion_request)
+
+        # Call chat completion
+        chat_response = await self.create_chat_completion(
+            chat_completion_request, raw_request
+        )
+        logger.debug("Raw chat completion response: %s", chat_response)
+        if isinstance(chat_response, ErrorResponse):
+            # Propagate chat completion errors directly
+            return chat_response
+
+        # Apply output template if it exists
+        if self.output_template:
+            chat_response = self.apply_output_template(chat_response)
+
+        # Calculate scores
+        scores = self.calculate_scores(chat_response)
+
+        return ChatDetectionResponse.from_chat_completion_response(
+            chat_response, scores, self.DETECTION_TYPE
+        )
