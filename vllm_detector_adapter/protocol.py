@@ -103,31 +103,6 @@ class ContextAnalysisRequest(BaseModel):
     # Parameters to pass through to chat completions, optional
     detector_params: Optional[Dict] = {}
 
-    def to_chat_completion_request(self, model_name: str):
-        """Function to convert context analysis request to openai chat completion request"""
-        # Can only process one context currently - TODO: validate
-        # For now, context_type is ignored but is required for the detection endpoint
-        # TODO: 'context' is not a generally supported 'role' in the openAI API
-        messages = [
-            {"role": "context", "content": self.context[0]},
-            {"role": "assistant", "content": self.content},
-        ]
-
-        # Try to pass all detector_params through as additional parameters to chat completions
-        # without additional validation or parameter changes as in ChatDetectionRequest above
-        try:
-            return ChatCompletionRequest(
-                messages=messages,
-                model=model_name,
-                **self.detector_params,
-            )
-        except ValidationError as e:
-            return ErrorResponse(
-                message=repr(e.errors()[0]),
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
-            )
-
 
 ######## General modified response(s) for chat completions
 

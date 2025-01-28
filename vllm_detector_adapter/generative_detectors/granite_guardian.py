@@ -1,13 +1,20 @@
 # Standard
-from typing import Union
+from http import HTTPStatus
+from typing import Optional, Union
 
 # Third Party
-from vllm.entrypoints.openai.protocol import ErrorResponse
+from fastapi import Request
+from pydantic import ValidationError
+from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ErrorResponse
 
 # Local
 from vllm_detector_adapter.generative_detectors.base import ChatCompletionDetectionBase
 from vllm_detector_adapter.logging import init_logger
-from vllm_detector_adapter.protocol import ChatDetectionRequest
+from vllm_detector_adapter.protocol import (
+    ChatDetectionRequest,
+    ChatDetectionResponse,
+    ContextAnalysisRequest,
+)
 
 logger = init_logger(__name__)
 
@@ -22,7 +29,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     SAFE_TOKEN = "No"
     UNSAFE_TOKEN = "Yes"
 
-    def preprocess(
+    def preprocess_chat_request(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Granite guardian specific parameter updates for risk name and risk definition"""
@@ -47,3 +54,50 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             }
 
         return request
+
+    async def context_analyze(
+        self,
+        request: ContextAnalysisRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[ChatDetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /context/doc response"""
+        # # Fetch model name from super class: OpenAIServing
+        # model_name = self.models.base_model_paths[0].name
+
+        # # Apply task template if it exists
+        # if self.task_template:
+        #     request = self.apply_task_template(request)
+        #     if isinstance(request, ErrorResponse):
+        #         # Propagate any request problems that will not allow
+        #         # task template to be applied
+        #         return request
+
+        # # Much of this chat completions processing is similar to the
+        # # .chat case and could be refactored if reused further in the future
+        pass
+
+    def to_chat_completion_request(self, model_name: str):
+        """Function to convert context analysis request to openai chat completion request"""
+        # Can only process one context currently - TODO: validate
+        # For now, context_type is ignored but is required for the detection endpoint
+        # TODO: 'context' is not a generally supported 'role' in the openAI API
+        # TODO: messages are much more specific to risk type
+        messages = [
+            {"role": "context", "content": self.context[0]},
+            {"role": "assistant", "content": self.content},
+        ]
+
+        # Try to pass all detector_params through as additional parameters to chat completions
+        # without additional validation or parameter changes as in ChatDetectionRequest above
+        try:
+            return ChatCompletionRequest(
+                messages=messages,
+                model=model_name,
+                **self.detector_params,
+            )
+        except ValidationError as e:
+            return ErrorResponse(
+                message=repr(e.errors()[0]),
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )

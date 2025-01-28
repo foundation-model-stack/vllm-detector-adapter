@@ -172,7 +172,9 @@ def test_preprocess_with_detector_params(granite_guardian_detection):
         ],
         detector_params=detector_params,
     )
-    processed_request = llama_guard_detection_instance.preprocess(initial_request)
+    processed_request = llama_guard_detection_instance.preprocess_chat_request(
+        initial_request
+    )
     assert type(processed_request) == ChatDetectionRequest
     # Processed request should not have these extra params
     assert "risk_name" not in processed_request.detector_params

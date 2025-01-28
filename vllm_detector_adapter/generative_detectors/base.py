@@ -70,16 +70,16 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         logger.info("Using supplied template:\n%s", resolved_template)
         return self.jinja_env.from_string(resolved_template)
 
-    def apply_task_template(
+    def apply_task_template_to_chat(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
-        """Apply task template on the request"""
+        """Apply task template on the chat request"""
         return request
 
-    def preprocess(
+    def preprocess_chat_request(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
-        """Preprocess request"""
+        """Preprocess chat request"""
         return request
 
     def apply_output_template(
@@ -135,18 +135,18 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         # Apply task template if it exists
         if self.task_template:
-            request = self.apply_task_template(request)
+            request = self.apply_task_template_to_chat(request)
             if isinstance(request, ErrorResponse):
                 # Propagate any request problems that will not allow
                 # task template to be applied
                 return request
 
         # Optionally make model-dependent adjustments for the request
-        request = self.preprocess(request)
+        request = self.preprocess_chat_request(request)
 
         chat_completion_request = request.to_chat_completion_request(model_name)
         if isinstance(chat_completion_request, ErrorResponse):
-            # Propagate any request problems like extra unallowed parameters
+            # Propagate any request problems
             return chat_completion_request
 
         # Return an error for streaming for now. Since the detector API is unary,
@@ -196,4 +196,10 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         raw_request: Optional[Request] = None,
     ) -> Union[ChatDetectionResponse, ErrorResponse]:
         """Function used to call chat detection and provide a /context/doc response"""
-        pass
+        # Return "not implemented" here since context analysis may not
+        # generally apply to all models at this time
+        return ErrorResponse(
+            message="context analysis is not supported for the detector",
+            type="NotImplementedError",
+            code=HTTPStatus.NOT_IMPLEMENTED.value,
+        )
