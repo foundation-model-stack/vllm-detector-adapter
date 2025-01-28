@@ -177,7 +177,11 @@ def test_preprocess_chat_request_with_detector_params(granite_guardian_detection
         ],
         detector_params=detector_params,
     )
+<<<<<<< HEAD
     processed_request = granite_guardian_detection_instance.preprocess_chat_request(
+=======
+    processed_request = llama_guard_detection_instance.preprocess_chat_request(
+>>>>>>> f4563c8 (:recycle: Update chat functions)
         initial_request
     )
     assert type(processed_request) == ChatDetectionRequest
