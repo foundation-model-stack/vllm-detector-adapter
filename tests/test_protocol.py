@@ -15,7 +15,6 @@ from vllm.entrypoints.openai.protocol import (
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ChatDetectionResponse,
-    ContextAnalysisRequest,
     DetectionChatMessageParam,
 )
 
@@ -59,29 +58,6 @@ def test_chat_detection_to_completion_request_unknown_params():
     request = chat_request.to_chat_completion_request(MODEL_NAME)
     # As of vllm >= 0.6.5, extra fields are allowed
     assert type(request) == ChatCompletionRequest
-
-
-# #### Context analysis detection request tests
-
-
-# def test_context_detection_to_completion_request():
-#     content = "Where do I find geese?"
-#     context_doc = "Geese can be found in lakes, ponds, and rivers"
-#     context_request = ContextAnalysisRequest(
-#         content=content,
-#         context_type="docs",
-#         context=[context_doc],
-#         detector_params={"n": 2, "temperature": 0.3},
-#     )
-#     request = context_request.to_chat_completion_request(MODEL_NAME)
-#     assert type(request) == ChatCompletionRequest
-#     assert request.messages[0]["role"] == "context"
-#     assert request.messages[0]["content"] == context_doc
-#     assert request.messages[1]["role"] == "assistant"
-#     assert request.messages[1]["content"] == content
-#     assert request.model == MODEL_NAME
-#     assert request.temperature == 0.3
-#     assert request.n == 2
 
 
 #### General response tests

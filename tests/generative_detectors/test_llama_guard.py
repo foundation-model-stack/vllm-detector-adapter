@@ -14,6 +14,7 @@ from vllm.entrypoints.openai.protocol import (
     ChatCompletionResponse,
     ChatCompletionResponseChoice,
     ChatMessage,
+    ErrorResponse,
     UsageInfo,
 )
 from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
@@ -25,6 +26,7 @@ from vllm_detector_adapter.generative_detectors.llama_guard import LlamaGuard
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ChatDetectionResponse,
+    ContextAnalysisRequest,
     DetectionChatMessageParam,
 )
 
@@ -194,3 +196,20 @@ def test_chat_detection(llama_guard_detection, llama_guard_completion_response):
         assert detection_0["detection"] == "safe"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 0.001346767
+
+
+def test_context_analyze(llama_guard_detection):
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    content = "Where do I find geese?"
+    context_doc = "Geese can be found in lakes, ponds, and rivers"
+    context_request = ContextAnalysisRequest(
+        content=content,
+        context_type="docs",
+        context=[context_doc],
+        detector_params={"n": 2, "temperature": 0.3},
+    )
+    response = asyncio.run(
+        llama_guard_detection_instance.context_analyze(context_request)
+    )
+    assert type(response) == ErrorResponse
+    assert response.code == HTTPStatus.NOT_IMPLEMENTED
