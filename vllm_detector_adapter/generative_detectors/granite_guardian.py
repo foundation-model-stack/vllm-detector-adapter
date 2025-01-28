@@ -117,7 +117,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             return ChatCompletionRequest(
                 messages=messages,
                 model=model_name,
-                **self.detector_params,
+                **request.detector_params,
             )
         except ValidationError as e:
             return ErrorResponse(
