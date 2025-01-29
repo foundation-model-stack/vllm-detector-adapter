@@ -99,8 +99,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             logger.warning("More than one context provided. Only the last will be used")
         context_text = request.context[-1]
         content = request.content
-        # The "context" role is not an officially support OpenAI role
-        # Messages must be in precise ordering, or model/template errors may occur
+        # The "context" role is not an officially support OpenAI role, so this is specific
+        # to Granite Guardian. Messages must also be in precise ordering, or model/template
+        # errors may occur.
         if risk_name in self.RESPONSE_CONTEXT_ANALYSIS_RISKS:
             # Response analysis
             messages = [
@@ -114,7 +115,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 {"role": "context", "content": context_text},
             ]
         else:
-            # Return error if risks are not appropriate [or could default to one of the above analyses]
+            # Return error if risk names are not expected ones
             return ErrorResponse(
                 message="risk_name {} is not compatible with context analysis".format(
                     risk_name

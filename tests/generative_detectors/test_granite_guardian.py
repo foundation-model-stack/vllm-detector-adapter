@@ -202,7 +202,10 @@ def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_det
     context_request = ContextAnalysisRequest(
         content=CONTENT,
         context_type="docs",
-        context=[CONTEXT_DOC],
+        context=[
+            "extra!",
+            CONTEXT_DOC,
+        ],  # additionally test that only last context is used
         detector_params={
             "n": 2,
             "chat_template_kwargs": {
@@ -216,6 +219,7 @@ def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_det
         )
     )
     assert type(chat_request) == ChatCompletionRequest
+    assert len(chat_request.messages) == 2
     assert chat_request.messages[0]["role"] == "user"
     assert chat_request.messages[0]["content"] == CONTENT
     assert chat_request.messages[1]["role"] == "context"
@@ -322,6 +326,35 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     assert (
         "risk_name foo is not compatible with context analysis" in chat_request.message
     )
+
+
+def test_context_analyze(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 2,
+            "chat_template_kwargs": {"guardian_config": {"risk_name": "groundedness"}},
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.context_analyze(context_request)
+        )
+        assert type(detection_response) == ChatDetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "Yes"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 1.0
 
 
 # NOTE: currently these functions are basically just the base implementations,
