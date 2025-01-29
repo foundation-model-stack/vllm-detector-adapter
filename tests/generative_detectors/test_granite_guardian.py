@@ -177,15 +177,7 @@ def test_preprocess_chat_request_with_detector_params(granite_guardian_detection
         ],
         detector_params=detector_params,
     )
-<<<<<<< HEAD
-<<<<<<< HEAD
     processed_request = granite_guardian_detection_instance.preprocess_chat_request(
-=======
-    processed_request = llama_guard_detection_instance.preprocess_chat_request(
->>>>>>> f4563c8 (:recycle: Update chat functions)
-=======
-    processed_request = granite_guardian_detection_instance.preprocess_chat_request(
->>>>>>> 18921e9 (:goal_net::white_check_mark: Context analysis request to chat completion request error handling and tests)
         initial_request
     )
     assert type(processed_request) == ChatDetectionRequest
@@ -210,14 +202,10 @@ def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_det
     context_request = ContextAnalysisRequest(
         content=CONTENT,
         context_type="docs",
-<<<<<<< HEAD
         context=[
             "extra!",
             CONTEXT_DOC,
         ],  # additionally test that multiple contexts are concatenated
-=======
-        context=[CONTEXT_DOC],
->>>>>>> 18921e9 (:goal_net::white_check_mark: Context analysis request to chat completion request error handling and tests)
         detector_params={
             "n": 2,
             "chat_template_kwargs": {
@@ -231,18 +219,11 @@ def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_det
         )
     )
     assert type(chat_request) == ChatCompletionRequest
-<<<<<<< HEAD
     assert len(chat_request.messages) == 2
     assert chat_request.messages[0]["role"] == "user"
     assert chat_request.messages[0]["content"] == CONTENT
     assert chat_request.messages[1]["role"] == "context"
     assert chat_request.messages[1]["content"] == "extra! " + CONTEXT_DOC
-=======
-    assert chat_request.messages[0]["role"] == "user"
-    assert chat_request.messages[0]["content"] == CONTENT
-    assert chat_request.messages[1]["role"] == "context"
-    assert chat_request.messages[1]["content"] == CONTEXT_DOC
->>>>>>> 18921e9 (:goal_net::white_check_mark: Context analysis request to chat completion request error handling and tests)
     assert chat_request.model == MODEL_NAME
     # detector_paramas
     assert chat_request.n == 2
@@ -347,7 +328,6 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     )
 
 
-<<<<<<< HEAD
 def test_context_analyze(
     granite_guardian_detection, granite_guardian_completion_response
 ):
@@ -377,8 +357,6 @@ def test_context_analyze(
         assert pytest.approx(detection_0["score"]) == 1.0
 
 
-=======
->>>>>>> 18921e9 (:goal_net::white_check_mark: Context analysis request to chat completion request error handling and tests)
 # NOTE: currently these functions are basically just the base implementations,
 # where safe/unsafe tokens are defined in the granite guardian class
 
