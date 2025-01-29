@@ -30,7 +30,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     UNSAFE_TOKEN = "Yes"
 
     # Risks associated with context analysis
-    PROMPT_CONTEXT_ANALYSIS_RISKS = ["relevance"]
+    PROMPT_CONTEXT_ANALYSIS_RISKS = ["context_relevance"]
     RESPONSE_CONTEXT_ANALYSIS_RISKS = ["groundedness"]
 
     def preprocess(
@@ -68,16 +68,27 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     def request_to_chat_completion_request(
         self, request: ContextAnalysisRequest, model_name: str
     ) -> Union[ChatCompletionRequest, ErrorResponse]:
+        NO_RISK_NAME_MESSAGE = "No risk_name for context analysis"
 
         risk_name = None
+        if (
+            "chat_template_kwargs" not in request.detector_params
+            or "guardian_config" not in request.detector_params["chat_template_kwargs"]
+        ):
+            return ErrorResponse(
+                message=NO_RISK_NAME_MESSAGE,
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
         # Use risk name to determine message format
         if guardian_config := request.detector_params["chat_template_kwargs"][
             "guardian_config"
         ]:
             risk_name = guardian_config["risk_name"]
         else:
+            # Leaving off risk name can lead to model/template errors
             return ErrorResponse(
-                message="No risk_name for context analysis",
+                message=NO_RISK_NAME_MESSAGE,
                 type="BadRequestError",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
@@ -89,6 +100,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         context_text = request.context[-1]
         content = request.content
         # The "context" role is not an officially support OpenAI role
+        # Messages must be in precise ordering, or model/template errors may occur
         if risk_name in self.RESPONSE_CONTEXT_ANALYSIS_RISKS:
             # Response analysis
             messages = [

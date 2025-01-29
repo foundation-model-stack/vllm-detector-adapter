@@ -11,6 +11,7 @@ from vllm.entrypoints.openai.protocol import (
     ChatCompletionLogProb,
     ChatCompletionLogProbs,
     ChatCompletionLogProbsContent,
+    ChatCompletionRequest,
     ChatCompletionResponse,
     ChatCompletionResponseChoice,
     ChatMessage,
@@ -26,12 +27,16 @@ from vllm_detector_adapter.generative_detectors.granite_guardian import GraniteG
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ChatDetectionResponse,
+    ContextAnalysisRequest,
     DetectionChatMessageParam,
 )
 
 MODEL_NAME = "ibm-granite/granite-guardian"  # Example granite-guardian model
 CHAT_TEMPLATE = "Dummy chat template for testing {}"
 BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
+
+CONTENT = "Where do I find geese?"
+CONTEXT_DOC = "Geese can be found in lakes, ponds, and rivers"
 
 
 @dataclass
@@ -155,8 +160,8 @@ def granite_guardian_completion_response():
 ### Tests #####################################################################
 
 
-def test_preprocess_with_detector_params(granite_guardian_detection):
-    llama_guard_detection_instance = asyncio.run(granite_guardian_detection)
+def test_preprocess_chat_request_with_detector_params(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     # Make sure with addition of allowed params like risk_name and risk_definition,
     # extra params do not get added to guardian_config
     detector_params = {
@@ -172,7 +177,7 @@ def test_preprocess_with_detector_params(granite_guardian_detection):
         ],
         detector_params=detector_params,
     )
-    processed_request = llama_guard_detection_instance.preprocess_chat_request(
+    processed_request = granite_guardian_detection_instance.preprocess_chat_request(
         initial_request
     )
     assert type(processed_request) == ChatDetectionRequest
@@ -192,6 +197,133 @@ def test_preprocess_with_detector_params(granite_guardian_detection):
     }
 
 
+def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 2,
+            "chat_template_kwargs": {
+                "guardian_config": {"risk_name": "context_relevance"}
+            },
+        },
+    )
+    chat_request = (
+        granite_guardian_detection_instance.request_to_chat_completion_request(
+            context_request, MODEL_NAME
+        )
+    )
+    assert type(chat_request) == ChatCompletionRequest
+    assert chat_request.messages[0]["role"] == "user"
+    assert chat_request.messages[0]["content"] == CONTENT
+    assert chat_request.messages[1]["role"] == "context"
+    assert chat_request.messages[1]["content"] == CONTEXT_DOC
+    assert chat_request.model == MODEL_NAME
+    # detector_paramas
+    assert chat_request.n == 2
+    assert (
+        chat_request.chat_template_kwargs["guardian_config"]["risk_name"]
+        == "context_relevance"
+    )
+
+
+def test_request_to_chat_completion_request_reponse_analysis(
+    granite_guardian_detection,
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 3,
+            "chat_template_kwargs": {"guardian_config": {"risk_name": "groundedness"}},
+        },
+    )
+    chat_request = (
+        granite_guardian_detection_instance.request_to_chat_completion_request(
+            context_request, MODEL_NAME
+        )
+    )
+    assert type(chat_request) == ChatCompletionRequest
+    assert chat_request.messages[0]["role"] == "context"
+    assert chat_request.messages[0]["content"] == CONTEXT_DOC
+    assert chat_request.messages[1]["role"] == "assistant"
+    assert chat_request.messages[1]["content"] == CONTENT
+    assert chat_request.model == MODEL_NAME
+    # detector_paramas
+    assert chat_request.n == 3
+    assert (
+        chat_request.chat_template_kwargs["guardian_config"]["risk_name"]
+        == "groundedness"
+    )
+
+
+def test_request_to_chat_completion_request_empty_kwargs(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={"n": 2, "chat_template_kwargs": {}},  # no guardian config
+    )
+    chat_request = (
+        granite_guardian_detection_instance.request_to_chat_completion_request(
+            context_request, MODEL_NAME
+        )
+    )
+    assert type(chat_request) == ErrorResponse
+    assert chat_request.code == HTTPStatus.BAD_REQUEST
+    assert "No risk_name for context analysis" in chat_request.message
+
+
+def test_request_to_chat_completion_request_empty_guardian_config(
+    granite_guardian_detection,
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={"n": 2, "chat_template_kwargs": {"guardian_config": {}}},
+    )
+    chat_request = (
+        granite_guardian_detection_instance.request_to_chat_completion_request(
+            context_request, MODEL_NAME
+        )
+    )
+    assert type(chat_request) == ErrorResponse
+    assert chat_request.code == HTTPStatus.BAD_REQUEST
+    assert "No risk_name for context analysis" in chat_request.message
+
+
+def test_request_to_chat_completion_request_unsupported_risk_name(
+    granite_guardian_detection,
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 2,
+            "chat_template_kwargs": {"guardian_config": {"risk_name": "foo"}},
+        },
+    )
+    chat_request = (
+        granite_guardian_detection_instance.request_to_chat_completion_request(
+            context_request, MODEL_NAME
+        )
+    )
+    assert type(chat_request) == ErrorResponse
+    assert chat_request.code == HTTPStatus.BAD_REQUEST
+    assert (
+        "risk_name foo is not compatible with context analysis" in chat_request.message
+    )
+
+
 # NOTE: currently these functions are basically just the base implementations,
 # where safe/unsafe tokens are defined in the granite guardian class
 
@@ -199,8 +331,8 @@ def test_preprocess_with_detector_params(granite_guardian_detection):
 def test_calculate_scores(
     granite_guardian_detection, granite_guardian_completion_response
 ):
-    llama_guard_detection_instance = asyncio.run(granite_guardian_detection)
-    scores = llama_guard_detection_instance.calculate_scores(
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    scores = granite_guardian_detection_instance.calculate_scores(
         granite_guardian_completion_response
     )
     assert len(scores) == 2  # 2 choices
