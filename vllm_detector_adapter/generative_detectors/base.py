@@ -14,7 +14,11 @@ import torch
 
 # Local
 from vllm_detector_adapter.logging import init_logger
-from vllm_detector_adapter.protocol import ChatDetectionRequest, ChatDetectionResponse
+from vllm_detector_adapter.protocol import (
+    ChatDetectionRequest,
+    ContextAnalysisRequest,
+    DetectionResponse,
+)
 
 logger = init_logger(__name__)
 
@@ -31,6 +35,8 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         self.task_template = self.load_template(task_template)
 
         self.output_template = self.load_template(output_template)
+
+    ##### Template functions ###################################################
 
     def load_template(self, template_path: Optional[Union[Path, str]]) -> str:
         """Function to load template
@@ -66,23 +72,27 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         logger.info("Using supplied template:\n%s", resolved_template)
         return self.jinja_env.from_string(resolved_template)
 
-    def apply_task_template(
-        self, request: ChatDetectionRequest
-    ) -> Union[ChatDetectionRequest, ErrorResponse]:
-        """Apply task template on the request"""
-        return request
-
-    def preprocess(
-        self, request: ChatDetectionRequest
-    ) -> Union[ChatDetectionRequest, ErrorResponse]:
-        """Preprocess request"""
-        return request
-
     def apply_output_template(
         self, response: ChatCompletionResponse
     ) -> Union[ChatCompletionResponse, ErrorResponse]:
         """Apply output parsing template for the response"""
         return response
+
+    ##### Chat request processing functions ####################################
+
+    def apply_task_template_to_chat(
+        self, request: ChatDetectionRequest
+    ) -> Union[ChatDetectionRequest, ErrorResponse]:
+        """Apply task template on the chat request"""
+        return request
+
+    def preprocess_chat_request(
+        self, request: ChatDetectionRequest
+    ) -> Union[ChatDetectionRequest, ErrorResponse]:
+        """Preprocess chat request"""
+        return request
+
+    ##### General chat completion output processing functions ##################
 
     def calculate_scores(self, response: ChatCompletionResponse) -> List[float]:
         """Extract scores from logprobs of the raw chat response"""
@@ -116,35 +126,9 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         return choice_scores
 
-    ##### Detection methods ####################################################
-    # Base implementation of other detection endpoints like content can go here
-
-    async def chat(
-        self,
-        request: ChatDetectionRequest,
-        raw_request: Optional[Request] = None,
-    ) -> Union[ChatDetectionResponse, ErrorResponse]:
-        """Function used to call chat detection and provide a /chat response"""
-
-        # Fetch model name from super class: OpenAIServing
-        model_name = self.models.base_model_paths[0].name
-
-        # Apply task template if it exists
-        if self.task_template:
-            request = self.apply_task_template(request)
-            if isinstance(request, ErrorResponse):
-                # Propagate any request problems that will not allow
-                # task template to be applied
-                return request
-
-        # Optionally make model-dependent adjustments for the request
-        request = self.preprocess(request)
-
-        chat_completion_request = request.to_chat_completion_request(model_name)
-        if isinstance(chat_completion_request, ErrorResponse):
-            # Propagate any request problems like extra unallowed parameters
-            return chat_completion_request
-
+    async def process_chat_completion_with_scores(
+        self, chat_completion_request, raw_request
+    ) -> Union[DetectionResponse, ErrorResponse]:
         # Return an error for streaming for now. Since the detector API is unary,
         # results would not be streamed back anyway. The chat completion response
         # object would look different, and content would have to be aggregated.
@@ -182,6 +166,53 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         # Calculate scores
         scores = self.calculate_scores(chat_response)
 
-        return ChatDetectionResponse.from_chat_completion_response(
+        return DetectionResponse.from_chat_completion_response(
             chat_response, scores, self.DETECTION_TYPE
+        )
+
+    ##### Detection methods ####################################################
+    # Base implementation of other detection endpoints like content can go here
+
+    async def chat(
+        self,
+        request: ChatDetectionRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[DetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /chat response"""
+
+        # Fetch model name from super class: OpenAIServing
+        model_name = self.models.base_model_paths[0].name
+
+        # Apply task template if it exists
+        if self.task_template:
+            request = self.apply_task_template_to_chat(request)
+            if isinstance(request, ErrorResponse):
+                # Propagate any request problems that will not allow
+                # task template to be applied
+                return request
+
+        # Optionally make model-dependent adjustments for the request
+        request = self.preprocess_chat_request(request)
+
+        chat_completion_request = request.to_chat_completion_request(model_name)
+        if isinstance(chat_completion_request, ErrorResponse):
+            # Propagate any request problems
+            return chat_completion_request
+
+        return await self.process_chat_completion_with_scores(
+            chat_completion_request, raw_request
+        )
+
+    async def context_analyze(
+        self,
+        request: ContextAnalysisRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[DetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /context/doc response"""
+        # Return "not implemented" here since context analysis may not
+        # generally apply to all models at this time
+        return ErrorResponse(
+            message="context analysis is not supported for the detector",
+            type="NotImplementedError",
+            code=HTTPStatus.NOT_IMPLEMENTED.value,
         )

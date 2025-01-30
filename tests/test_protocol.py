@@ -14,16 +14,18 @@ from vllm.entrypoints.openai.protocol import (
 # Local
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
-    ChatDetectionResponse,
     DetectionChatMessageParam,
+    DetectionResponse,
 )
 
 MODEL_NAME = "org/model-name"
 
 ### Tests #####################################################################
 
+#### Chat detection request tests
 
-def test_detection_to_completion_request():
+
+def test_chat_detection_to_completion_request():
     chat_request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
@@ -46,7 +48,7 @@ def test_detection_to_completion_request():
     assert request.n == 3
 
 
-def test_detection_to_completion_request_unknown_params():
+def test_chat_detection_to_completion_request_unknown_params():
     chat_request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(role="user", content="How do I search for moose?")
@@ -56,6 +58,9 @@ def test_detection_to_completion_request_unknown_params():
     request = chat_request.to_chat_completion_request(MODEL_NAME)
     # As of vllm >= 0.6.5, extra fields are allowed
     assert type(request) == ChatCompletionRequest
+
+
+#### General response tests
 
 
 def test_response_from_completion_response():
@@ -81,10 +86,10 @@ def test_response_from_completion_response():
     )
     scores = [0.3, 0.7]
     detection_type = "type"
-    detection_response = ChatDetectionResponse.from_chat_completion_response(
+    detection_response = DetectionResponse.from_chat_completion_response(
         response, scores, detection_type
     )
-    assert type(detection_response) == ChatDetectionResponse
+    assert type(detection_response) == DetectionResponse
     detections = detection_response.model_dump()
     assert len(detections) == 2  # 2 choices
     detection_0 = detections[0]
@@ -115,7 +120,7 @@ def test_response_from_completion_response_missing_content():
     )
     scores = [0.3, 0.7]
     detection_type = "type"
-    detection_response = ChatDetectionResponse.from_chat_completion_response(
+    detection_response = DetectionResponse.from_chat_completion_response(
         response, scores, detection_type
     )
     assert type(detection_response) == ErrorResponse

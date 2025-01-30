@@ -11,10 +11,10 @@ from vllm.entrypoints.openai.protocol import (
     ErrorResponse,
 )
 
-##### [FMS] Detection API types
-# NOTE: This currently works with the /chat detection endpoint
+##### [FMS] Detection API types #####
+# Endpoints are as documented https://foundation-model-stack.github.io/fms-guardrails-orchestrator/?urls.primaryName=Detector+API#/
 
-######## Contents Detection types
+######## Contents Detection types (currently unused) for the /text/contents detection endpoint
 
 
 class ContentsDetectionRequest(BaseModel):
@@ -35,7 +35,7 @@ class ContentsDetectionResponseObject(BaseModel):
     score: float = Field(examples=[0.5])
 
 
-######## Chat Detection types
+##### Chat Detection types for the /text/chat detection endpoint ###############
 
 
 class DetectionChatMessageParam(TypedDict):
@@ -85,16 +85,43 @@ class ChatDetectionRequest(BaseModel):
             )
 
 
-class ChatDetectionResponseObject(BaseModel):
+##### Context Analysis Detection types for the /text/context/docs detection endpoint
+
+
+class ContextAnalysisRequest(BaseModel):
+    # Content to run detection on
+    content: str = Field(examples=["What is a moose?"])
+    # Type of context - url or docs (for text documents)
+    context_type: str = Field(examples=["docs", "url"])
+    # Context of type context_type to run detection on
+    context: List[str] = Field(
+        examples=[
+            "https://en.wikipedia.org/wiki/Moose",
+            "https://www.nwf.org/Educational-Resources/Wildlife-Guide/Mammals/Moose",
+        ]
+    )
+    # Parameters to pass through to chat completions, optional
+    detector_params: Optional[Dict] = {}
+
+    # NOTE: currently there is no general to_chat_completion_request
+    # since the chat completion roles and messages are fairly tied
+    # to particular models' risk definitions. If a general strategy
+    # is identified, it can be implemented here.
+
+
+##### General detection response objects #######################################
+
+
+class DetectionResponseObject(BaseModel):
     detection: str = Field(examples=["positive"])
     detection_type: str = Field(examples=["simple_example"])
     score: float = Field(examples=[0.5])
 
 
-class ChatDetectionResponse(RootModel):
+class DetectionResponse(RootModel):
     # The root attribute is used here so that the response will appear
     # as a list instead of a list nested under a key
-    root: List[ChatDetectionResponseObject]
+    root: List[DetectionResponseObject]
 
     @staticmethod
     def from_chat_completion_response(
@@ -105,7 +132,7 @@ class ChatDetectionResponse(RootModel):
         for i, choice in enumerate(response.choices):
             content = choice.message.content
             if content and isinstance(content, str):
-                response_object = ChatDetectionResponseObject(
+                response_object = DetectionResponseObject(
                     detection_type=detection_type,
                     detection=content.strip(),
                     score=scores[i],
@@ -123,4 +150,4 @@ class ChatDetectionResponse(RootModel):
                     code=HTTPStatus.BAD_REQUEST.value,
                 )
 
-        return ChatDetectionResponse(root=detection_responses)
+        return DetectionResponse(root=detection_responses)

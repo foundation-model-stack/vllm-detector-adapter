@@ -25,7 +25,11 @@ import uvloop
 # Local
 from vllm_detector_adapter import generative_detectors
 from vllm_detector_adapter.logging import init_logger
-from vllm_detector_adapter.protocol import ChatDetectionRequest, ChatDetectionResponse
+from vllm_detector_adapter.protocol import (
+    ChatDetectionRequest,
+    ContextAnalysisRequest,
+    DetectionResponse,
+)
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 
@@ -156,7 +160,29 @@ async def create_chat_detection(request: ChatDetectionRequest, raw_request: Requ
             content=detector_response.model_dump(), status_code=detector_response.code
         )
 
-    elif isinstance(detector_response, ChatDetectionResponse):
+    elif isinstance(detector_response, DetectionResponse):
+        return JSONResponse(content=detector_response.model_dump())
+
+    return JSONResponse({})
+
+
+@router.post("/api/v1/text/context/doc")
+async def create_context_doc_detection(
+    request: ContextAnalysisRequest, raw_request: Request
+):
+    """Support context analysis endpoint"""
+
+    detector_response = await chat_detection(raw_request).context_analyze(
+        request, raw_request
+    )
+
+    if isinstance(detector_response, ErrorResponse):
+        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
+        return JSONResponse(
+            content=detector_response.model_dump(), status_code=detector_response.code
+        )
+
+    elif isinstance(detector_response, DetectionResponse):
         return JSONResponse(content=detector_response.model_dump())
 
     return JSONResponse({})
