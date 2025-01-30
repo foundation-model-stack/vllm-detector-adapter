@@ -215,8 +215,8 @@ def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_det
         },
     )
     chat_request = (
-        granite_guardian_detection_instance.request_to_chat_completion_request(
-            context_request, MODEL_NAME
+        granite_guardian_detection_instance._request_to_chat_completion_request(
+            context_request, MODEL_NAME, fn_type=DetectorType.TEXT_CONTEXT_DOC
         )
     )
     assert type(chat_request) == ChatCompletionRequest
@@ -248,8 +248,8 @@ def test_request_to_chat_completion_request_reponse_analysis(
         },
     )
     chat_request = (
-        granite_guardian_detection_instance.request_to_chat_completion_request(
-            context_request, MODEL_NAME
+        granite_guardian_detection_instance._request_to_chat_completion_request(
+            context_request, MODEL_NAME, fn_type=DetectorType.TEXT_CONTEXT_DOC
         )
     )
     assert type(chat_request) == ChatCompletionRequest
@@ -275,8 +275,8 @@ def test_request_to_chat_completion_request_empty_kwargs(granite_guardian_detect
         detector_params={"n": 2, "chat_template_kwargs": {}},  # no guardian config
     )
     chat_request = (
-        granite_guardian_detection_instance.request_to_chat_completion_request(
-            context_request, MODEL_NAME
+        granite_guardian_detection_instance._request_to_chat_completion_request(
+            context_request, MODEL_NAME, fn_type=DetectorType.TEXT_CONTEXT_DOC
         )
     )
     assert type(chat_request) == ErrorResponse
@@ -295,8 +295,8 @@ def test_request_to_chat_completion_request_empty_guardian_config(
         detector_params={"n": 2, "chat_template_kwargs": {"guardian_config": {}}},
     )
     chat_request = (
-        granite_guardian_detection_instance.request_to_chat_completion_request(
-            context_request, MODEL_NAME
+        granite_guardian_detection_instance._request_to_chat_completion_request(
+            context_request, MODEL_NAME, fn_type=DetectorType.TEXT_CONTEXT_DOC
         )
     )
     assert type(chat_request) == ErrorResponse
@@ -318,8 +318,8 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
         },
     )
     chat_request = (
-        granite_guardian_detection_instance.request_to_chat_completion_request(
-            context_request, MODEL_NAME
+        granite_guardian_detection_instance._request_to_chat_completion_request(
+            context_request, MODEL_NAME, fn_type=DetectorType.TEXT_CONTEXT_DOC
         )
     )
     assert type(chat_request) == ErrorResponse
