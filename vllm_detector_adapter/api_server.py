@@ -204,7 +204,7 @@ async def create_context_doc_detection(
             content=detector_response.model_dump(), status_code=detector_response.code
         )
 
-    elif isinstance(detector_response, ChatDetectionResponse):
+    elif isinstance(detector_response, DetectionResponse):
         return JSONResponse(content=detector_response.model_dump())
 
     return JSONResponse({})
