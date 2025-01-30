@@ -95,9 +95,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         if len(request.context) > 1:
             # The detector API for context docs detection supports more than one context text
-            # but currently chat completions will only take one context.
-            logger.warning("More than one context provided. Only the last will be used")
-        context_text = request.context[-1]
+            # but currently chat completions will only take one context. Here, we concatenate
+            # multiple contexts together if provided. Models will error if the user request
+            # exceeds the model's context length
+            logger.warning("More than one context provided. Concatenating contexts.")
+        context_text = " ".join(request.context)  # Will not affect single context case
         content = request.content
         # The "context" role is not an officially supported OpenAI role, so this is specific
         # to Granite Guardian. Messages must also be in precise ordering, or model/template
