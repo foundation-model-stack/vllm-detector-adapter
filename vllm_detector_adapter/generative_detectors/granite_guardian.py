@@ -150,14 +150,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # Fetch model name from super class: OpenAIServing
         model_name = self.models.base_model_paths[0].name
 
-        # Apply task template if it exists
-        if self.task_template:
-            request = self.apply_task_template_to_chat(request)
-            if isinstance(request, ErrorResponse):
-                # Propagate any request problems that will not allow
-                # task template to be applied
-                return request
-
+        # Task template not applied for context analysis at this time
         # Make model-dependent adjustments for the request
         request = self.preprocess(request)
 
