@@ -1,9 +1,11 @@
+# Standard
 import functools
 import inspect
 
 # global list to store all the registered functions with
 # their types and qualified name
 global_fn_list = dict()
+
 
 def detector_dispatcher(types=None):
     """Decorator to dispath to processing function based on type of the detector.
@@ -62,8 +64,3 @@ def detector_dispatcher(types=None):
         return wrapper
 
     return decorator
-
-
-
-
-
