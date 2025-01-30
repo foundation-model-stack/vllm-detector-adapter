@@ -13,12 +13,14 @@ import jinja2
 import torch
 
 # Local
+from vllm_detector_adapter.detector_dispatcher import detector_dispatcher
 from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContextAnalysisRequest,
     DetectionResponse,
 )
+from vllm_detector_adapter.utils import DetectorType
 
 logger = init_logger(__name__)
 
@@ -80,13 +82,15 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     ##### Chat request processing functions ####################################
 
-    def apply_task_template_to_chat(
+    @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
+    def apply_task_template(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Apply task template on the chat request"""
         return request
 
-    def preprocess_chat_request(
+    @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
+    def preprocess_request(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Preprocess chat request"""
@@ -185,14 +189,14 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         # Apply task template if it exists
         if self.task_template:
-            request = self.apply_task_template_to_chat(request)
+            request = self.apply_task_template(request, fn_type=DetectorType.TEXT_CHAT)
             if isinstance(request, ErrorResponse):
                 # Propagate any request problems that will not allow
                 # task template to be applied
                 return request
 
         # Optionally make model-dependent adjustments for the request
-        request = self.preprocess_chat_request(request)
+        request = self.preprocess_request(request, fn_type=DetectorType.TEXT_CHAT)
 
         chat_completion_request = request.to_chat_completion_request(model_name)
         if isinstance(chat_completion_request, ErrorResponse):

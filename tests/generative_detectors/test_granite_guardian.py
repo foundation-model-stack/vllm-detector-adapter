@@ -30,6 +30,7 @@ from vllm_detector_adapter.protocol import (
     DetectionChatMessageParam,
     DetectionResponse,
 )
+from vllm_detector_adapter.utils import DetectorType
 
 MODEL_NAME = "ibm-granite/granite-guardian"  # Example granite-guardian model
 CHAT_TEMPLATE = "Dummy chat template for testing {}"
@@ -177,8 +178,8 @@ def test_preprocess_chat_request_with_detector_params(granite_guardian_detection
         ],
         detector_params=detector_params,
     )
-    processed_request = granite_guardian_detection_instance.preprocess_chat_request(
-        initial_request
+    processed_request = granite_guardian_detection_instance.preprocess_request(
+        initial_request, fn_type=DetectorType.TEXT_CHAT
     )
     assert type(processed_request) == ChatDetectionRequest
     # Processed request should not have these extra params
