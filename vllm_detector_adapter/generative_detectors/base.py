@@ -16,8 +16,8 @@ import torch
 from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
-    ChatDetectionResponse,
     ContextAnalysisRequest,
+    DetectionResponse,
 )
 
 logger = init_logger(__name__)
@@ -126,35 +126,9 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         return choice_scores
 
-    ##### Detection methods ####################################################
-    # Base implementation of other detection endpoints like content can go here
-
-    async def chat(
-        self,
-        request: ChatDetectionRequest,
-        raw_request: Optional[Request] = None,
-    ) -> Union[ChatDetectionResponse, ErrorResponse]:
-        """Function used to call chat detection and provide a /chat response"""
-
-        # Fetch model name from super class: OpenAIServing
-        model_name = self.models.base_model_paths[0].name
-
-        # Apply task template if it exists
-        if self.task_template:
-            request = self.apply_task_template_to_chat(request)
-            if isinstance(request, ErrorResponse):
-                # Propagate any request problems that will not allow
-                # task template to be applied
-                return request
-
-        # Optionally make model-dependent adjustments for the request
-        request = self.preprocess_chat_request(request)
-
-        chat_completion_request = request.to_chat_completion_request(model_name)
-        if isinstance(chat_completion_request, ErrorResponse):
-            # Propagate any request problems
-            return chat_completion_request
-
+    async def process_chat_completion_with_scores(
+        self, chat_completion_request, raw_request
+    ) -> Union[DetectionResponse, ErrorResponse]:
         # Return an error for streaming for now. Since the detector API is unary,
         # results would not be streamed back anyway. The chat completion response
         # object would look different, and content would have to be aggregated.
@@ -192,15 +166,48 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         # Calculate scores
         scores = self.calculate_scores(chat_response)
 
-        return ChatDetectionResponse.from_chat_completion_response(
+        return DetectionResponse.from_chat_completion_response(
             chat_response, scores, self.DETECTION_TYPE
+        )
+
+    ##### Detection methods ####################################################
+    # Base implementation of other detection endpoints like content can go here
+
+    async def chat(
+        self,
+        request: ChatDetectionRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[DetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /chat response"""
+
+        # Fetch model name from super class: OpenAIServing
+        model_name = self.models.base_model_paths[0].name
+
+        # Apply task template if it exists
+        if self.task_template:
+            request = self.apply_task_template_to_chat(request)
+            if isinstance(request, ErrorResponse):
+                # Propagate any request problems that will not allow
+                # task template to be applied
+                return request
+
+        # Optionally make model-dependent adjustments for the request
+        request = self.preprocess_chat_request(request)
+
+        chat_completion_request = request.to_chat_completion_request(model_name)
+        if isinstance(chat_completion_request, ErrorResponse):
+            # Propagate any request problems
+            return chat_completion_request
+
+        return await self.process_chat_completion_with_scores(
+            chat_completion_request, raw_request
         )
 
     async def context_analyze(
         self,
         request: ContextAnalysisRequest,
         raw_request: Optional[Request] = None,
-    ) -> Union[ChatDetectionResponse, ErrorResponse]:
+    ) -> Union[DetectionResponse, ErrorResponse]:
         """Function used to call chat detection and provide a /context/doc response"""
         # Return "not implemented" here since context analysis may not
         # generally apply to all models at this time

@@ -109,19 +109,19 @@ class ContextAnalysisRequest(BaseModel):
     # is identified, it can be implemented here.
 
 
-##### General modified response(s) for chat completions ########################
+##### General detection response objects #######################################
 
 
-class ChatDetectionResponseObject(BaseModel):
+class DetectionResponseObject(BaseModel):
     detection: str = Field(examples=["positive"])
     detection_type: str = Field(examples=["simple_example"])
     score: float = Field(examples=[0.5])
 
 
-class ChatDetectionResponse(RootModel):
+class DetectionResponse(RootModel):
     # The root attribute is used here so that the response will appear
     # as a list instead of a list nested under a key
-    root: List[ChatDetectionResponseObject]
+    root: List[DetectionResponseObject]
 
     @staticmethod
     def from_chat_completion_response(
@@ -132,7 +132,7 @@ class ChatDetectionResponse(RootModel):
         for i, choice in enumerate(response.choices):
             content = choice.message.content
             if content and isinstance(content, str):
-                response_object = ChatDetectionResponseObject(
+                response_object = DetectionResponseObject(
                     detection_type=detection_type,
                     detection=content.strip(),
                     score=scores[i],
@@ -150,4 +150,4 @@ class ChatDetectionResponse(RootModel):
                     code=HTTPStatus.BAD_REQUEST.value,
                 )
 
-        return ChatDetectionResponse(root=detection_responses)
+        return DetectionResponse(root=detection_responses)

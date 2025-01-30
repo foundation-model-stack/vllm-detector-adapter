@@ -14,8 +14,8 @@ from vllm.entrypoints.openai.protocol import (
 # Local
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
-    ChatDetectionResponse,
     DetectionChatMessageParam,
+    DetectionResponse,
 )
 
 MODEL_NAME = "org/model-name"
@@ -86,10 +86,10 @@ def test_response_from_completion_response():
     )
     scores = [0.3, 0.7]
     detection_type = "type"
-    detection_response = ChatDetectionResponse.from_chat_completion_response(
+    detection_response = DetectionResponse.from_chat_completion_response(
         response, scores, detection_type
     )
-    assert type(detection_response) == ChatDetectionResponse
+    assert type(detection_response) == DetectionResponse
     detections = detection_response.model_dump()
     assert len(detections) == 2  # 2 choices
     detection_0 = detections[0]
@@ -120,7 +120,7 @@ def test_response_from_completion_response_missing_content():
     )
     scores = [0.3, 0.7]
     detection_type = "type"
-    detection_response = ChatDetectionResponse.from_chat_completion_response(
+    detection_response = DetectionResponse.from_chat_completion_response(
         response, scores, detection_type
     )
     assert type(detection_response) == ErrorResponse

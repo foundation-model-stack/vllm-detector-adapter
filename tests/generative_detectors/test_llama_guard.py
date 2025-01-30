@@ -25,9 +25,9 @@ import pytest_asyncio
 from vllm_detector_adapter.generative_detectors.llama_guard import LlamaGuard
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
-    ChatDetectionResponse,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
+    DetectionResponse,
 )
 
 MODEL_NAME = "meta-llama/Llama-Guard-3-8B"  # Example llama guard model
@@ -189,7 +189,7 @@ def test_chat_detection(llama_guard_detection, llama_guard_completion_response):
         detection_response = asyncio.run(
             llama_guard_detection_instance.chat(chat_request)
         )
-        assert type(detection_response) == ChatDetectionResponse
+        assert type(detection_response) == DetectionResponse
         detections = detection_response.model_dump()
         assert len(detections) == 2  # 2 choices
         detection_0 = detections[0]

@@ -12,8 +12,8 @@ from vllm_detector_adapter.generative_detectors.base import ChatCompletionDetect
 from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
-    ChatDetectionResponse,
     ContextAnalysisRequest,
+    DetectionResponse,
 )
 
 logger = init_logger(__name__)
@@ -143,7 +143,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         self,
         request: ContextAnalysisRequest,
         raw_request: Optional[Request] = None,
-    ) -> Union[ChatDetectionResponse, ErrorResponse]:
+    ) -> Union[DetectionResponse, ErrorResponse]:
         """Function used to call chat detection and provide a /context/doc response"""
         # Fetch model name from super class: OpenAIServing
         model_name = self.models.base_model_paths[0].name
@@ -169,46 +169,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # Propagate any request problems
             return chat_completion_request
 
-        # Much of this chat completions processing is similar to the
-        # .chat case and could be refactored if reused further in the future
-
-        # Return an error for streaming for now. Since the detector API is unary,
-        # results would not be streamed back anyway. The chat completion response
-        # object would look different, and content would have to be aggregated.
-        if chat_completion_request.stream:
-            return ErrorResponse(
-                message="streaming is not supported for the detector",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
-            )
-
-        # Manually set logprobs to True to calculate score later on
-        # NOTE: this is supposed to override if user has set logprobs to False
-        # or left logprobs as the default False
-        chat_completion_request.logprobs = True
-        # NOTE: We need top_logprobs to be enabled to calculate score appropriately
-        # We override this and not allow configuration at this point. In future, we may
-        # want to expose this configurable to certain range.
-        chat_completion_request.top_logprobs = 5
-
-        logger.debug("Request to chat completion: %s", chat_completion_request)
-
-        # Call chat completion
-        chat_response = await self.create_chat_completion(
+        # Calling chat completion and processing of scores is currently
+        # the same as for the /chat case
+        return await self.process_chat_completion_with_scores(
             chat_completion_request, raw_request
-        )
-        logger.debug("Raw chat completion response: %s", chat_response)
-        if isinstance(chat_response, ErrorResponse):
-            # Propagate chat completion errors directly
-            return chat_response
-
-        # Apply output template if it exists
-        if self.output_template:
-            chat_response = self.apply_output_template(chat_response)
-
-        # Calculate scores
-        scores = self.calculate_scores(chat_response)
-
-        return ChatDetectionResponse.from_chat_completion_response(
-            chat_response, scores, self.DETECTION_TYPE
         )

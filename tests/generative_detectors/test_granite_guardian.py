@@ -26,9 +26,9 @@ import pytest_asyncio
 from vllm_detector_adapter.generative_detectors.granite_guardian import GraniteGuardian
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
-    ChatDetectionResponse,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
+    DetectionResponse,
 )
 
 MODEL_NAME = "ibm-granite/granite-guardian"  # Example granite-guardian model
@@ -348,7 +348,7 @@ def test_context_analyze(
         detection_response = asyncio.run(
             granite_guardian_detection_instance.context_analyze(context_request)
         )
-        assert type(detection_response) == ChatDetectionResponse
+        assert type(detection_response) == DetectionResponse
         detections = detection_response.model_dump()
         assert len(detections) == 2  # 2 choices
         detection_0 = detections[0]
@@ -391,7 +391,7 @@ def test_chat_detection(
         detection_response = asyncio.run(
             granite_guardian_detection_instance.chat(chat_request)
         )
-        assert type(detection_response) == ChatDetectionResponse
+        assert type(detection_response) == DetectionResponse
         detections = detection_response.model_dump()
         assert len(detections) == 2  # 2 choices
         detection_0 = detections[0]
