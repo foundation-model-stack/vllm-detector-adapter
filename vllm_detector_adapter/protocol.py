@@ -11,7 +11,7 @@ from vllm.entrypoints.openai.protocol import (
     ErrorResponse,
 )
 
-##### [FMS] Detection API types
+##### [FMS] Detection API types #####
 # Endpoints are as documented https://foundation-model-stack.github.io/fms-guardrails-orchestrator/?urls.primaryName=Detector+API#/
 
 ######## Contents Detection types (currently unused) for the /text/contents detection endpoint
@@ -35,7 +35,7 @@ class ContentsDetectionResponseObject(BaseModel):
     score: float = Field(examples=[0.5])
 
 
-######## Chat Detection types for the /text/chat detection endpoint
+##### Chat Detection types for the /text/chat detection endpoint ###############
 
 
 class DetectionChatMessageParam(TypedDict):
@@ -85,7 +85,7 @@ class ChatDetectionRequest(BaseModel):
             )
 
 
-######## Context Analysis Detection types for the /text/context/docs detection endpoint
+##### Context Analysis Detection types for the /text/context/docs detection endpoint
 
 
 class ContextAnalysisRequest(BaseModel):
@@ -109,7 +109,7 @@ class ContextAnalysisRequest(BaseModel):
     # is identified, it can be implemented here.
 
 
-######## General modified response(s) for chat completions
+##### General modified response(s) for chat completions ########################
 
 
 class ChatDetectionResponseObject(BaseModel):

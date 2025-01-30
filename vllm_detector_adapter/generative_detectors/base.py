@@ -36,6 +36,8 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         self.output_template = self.load_template(output_template)
 
+    ##### Template functions ###################################################
+
     def load_template(self, template_path: Optional[Union[Path, str]]) -> str:
         """Function to load template
         Note: this function currently is largely taken from the chat template method
@@ -70,6 +72,14 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         logger.info("Using supplied template:\n%s", resolved_template)
         return self.jinja_env.from_string(resolved_template)
 
+    def apply_output_template(
+        self, response: ChatCompletionResponse
+    ) -> Union[ChatCompletionResponse, ErrorResponse]:
+        """Apply output parsing template for the response"""
+        return response
+
+    ##### Chat request processing functions ####################################
+
     def apply_task_template_to_chat(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
@@ -82,11 +92,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         """Preprocess chat request"""
         return request
 
-    def apply_output_template(
-        self, response: ChatCompletionResponse
-    ) -> Union[ChatCompletionResponse, ErrorResponse]:
-        """Apply output parsing template for the response"""
-        return response
+    ##### General chat completion output processing functions ##################
 
     def calculate_scores(self, response: ChatCompletionResponse) -> List[float]:
         """Extract scores from logprobs of the raw chat response"""
