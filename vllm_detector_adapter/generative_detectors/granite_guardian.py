@@ -72,7 +72,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         """Granite guardian chat request preprocess is just detector parameter updates"""
         return self.__preprocess(request)
 
-    def request_to_chat_completion_request(
+    @detector_dispatcher(types=[DetectorType.TEXT_CONTEXT_DOC])
+    def _request_to_chat_completion_request(
         self, request: ContextAnalysisRequest, model_name: str
     ) -> Union[ChatCompletionRequest, ErrorResponse]:
         NO_RISK_NAME_MESSAGE = "No risk_name for context analysis"
@@ -164,8 +165,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # Since particular chat messages are dependent on Granite Guardian risk definitions,
         # the processing is done here rather than in a separate, general to_chat_completion_request
         # for all context analysis requests.
-        chat_completion_request = self.request_to_chat_completion_request(
-            request, model_name
+        chat_completion_request = self._request_to_chat_completion_request(
+            request, model_name, fn_type=DetectorType.TEXT_CONTEXT_DOC
         )
         if isinstance(chat_completion_request, ErrorResponse):
             # Propagate any request problems
