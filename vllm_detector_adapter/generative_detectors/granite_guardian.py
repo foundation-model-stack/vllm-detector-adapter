@@ -152,7 +152,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         # Apply task template if it exists
         if self.task_template:
-            request = self.apply_task_template(request)
+            request = self.apply_task_template_to_chat(request)
             if isinstance(request, ErrorResponse):
                 # Propagate any request problems that will not allow
                 # task template to be applied
