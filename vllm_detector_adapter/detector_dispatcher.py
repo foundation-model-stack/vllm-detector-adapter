@@ -53,13 +53,17 @@ def detector_dispatcher(types=None):
 
         @functools.wraps(func)
         def wrapper(*args, fn_type=None, **kwargs):
+            fn_name = func.__qualname__
 
             if not fn_type:
                 raise ValueError("Must specify fn_type.")
 
+            if fn_type not in global_fn_list[fn_name].keys():
+                raise ValueError("Invalid fn_type.")
+
             # Grab the function using its fully qualified name and the specified type
             # and then call it
-            return global_fn_list[func.__qualname__][fn_type](*args, **kwargs)
+            return global_fn_list[fn_name][fn_type](*args, **kwargs)
 
         return wrapper
 
