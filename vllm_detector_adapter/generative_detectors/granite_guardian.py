@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ErrorResponse
 
 # Local
+from vllm_detector_adapter.detector_dispatcher import detector_dispatcher
 from vllm_detector_adapter.generative_detectors.base import ChatCompletionDetectionBase
 from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
@@ -15,6 +16,7 @@ from vllm_detector_adapter.protocol import (
     ContextAnalysisRequest,
     DetectionResponse,
 )
+from vllm_detector_adapter.utils import DetectorType
 
 logger = init_logger(__name__)
 
@@ -33,7 +35,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     PROMPT_CONTEXT_ANALYSIS_RISKS = ["context_relevance"]
     RESPONSE_CONTEXT_ANALYSIS_RISKS = ["groundedness"]
 
-    def preprocess(
+    ##### Private functions ###################################################
+
+    def __preprocess(
         self, request: Union[ChatDetectionRequest, ContextAnalysisRequest]
     ) -> Union[ChatDetectionRequest, ContextAnalysisRequest, ErrorResponse]:
         """Granite guardian specific parameter updates for risk name and risk definition"""
@@ -59,13 +63,17 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         return request
 
-    def preprocess_chat_request(
+    ##### General chat completion output processing functions ##################
+
+    @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
+    def preprocess_request(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Granite guardian chat request preprocess is just detector parameter updates"""
-        return self.preprocess(request)
+        return self.__preprocess(request)
 
-    def request_to_chat_completion_request(
+    @detector_dispatcher(types=[DetectorType.TEXT_CONTEXT_DOC])
+    def _request_to_chat_completion_request(
         self, request: ContextAnalysisRequest, model_name: str
     ) -> Union[ChatCompletionRequest, ErrorResponse]:
         NO_RISK_NAME_MESSAGE = "No risk_name for context analysis"
@@ -152,13 +160,13 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         # Task template not applied for context analysis at this time
         # Make model-dependent adjustments for the request
-        request = self.preprocess(request)
+        request = self.__preprocess(request)
 
         # Since particular chat messages are dependent on Granite Guardian risk definitions,
         # the processing is done here rather than in a separate, general to_chat_completion_request
         # for all context analysis requests.
-        chat_completion_request = self.request_to_chat_completion_request(
-            request, model_name
+        chat_completion_request = self._request_to_chat_completion_request(
+            request, model_name, fn_type=DetectorType.TEXT_CONTEXT_DOC
         )
         if isinstance(chat_completion_request, ErrorResponse):
             # Propagate any request problems
