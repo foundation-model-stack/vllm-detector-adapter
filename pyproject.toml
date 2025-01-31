@@ -13,13 +13,13 @@ classifiers = [
 ]
 
 dependencies = [
-    "vllm>=0.7.0"
+    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.7.0 ; sys_platform == 'darwin'",
+    "vllm>=0.7.0 ; sys_platform != 'darwin'",
 ]
 
 [project.optional-dependencies]
 vllm-tgis-adapter = [
-    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.7.0 ; sys_platform == 'darwin'",
-    "vllm>=0.7.0 ; sys_platform != 'darwin'",
+    "vllm-tgis-adapter>=0.5.3,<0.5.4"
 ]
 
 ## Dev Extra Sets ##
