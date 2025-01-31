@@ -1,6 +1,5 @@
 # Standard
 import functools
-import inspect
 
 # global list to store all the registered functions with
 # their types and qualified name
