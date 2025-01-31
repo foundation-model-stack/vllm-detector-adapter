@@ -63,15 +63,6 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         return request
 
-    ##### General chat completion output processing functions ##################
-
-    @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
-    def preprocess_request(
-        self, request: ChatDetectionRequest
-    ) -> Union[ChatDetectionRequest, ErrorResponse]:
-        """Granite guardian chat request preprocess is just detector parameter updates"""
-        return self.__preprocess(request)
-
     @detector_dispatcher(types=[DetectorType.TEXT_CONTEXT_DOC])
     def _request_to_chat_completion_request(
         self, request: ContextAnalysisRequest, model_name: str
@@ -148,6 +139,15 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 type="BadRequestError",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
+
+    ##### General request / response processing functions ##################
+
+    @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
+    def preprocess_request(
+        self, request: ChatDetectionRequest
+    ) -> Union[ChatDetectionRequest, ErrorResponse]:
+        """Granite guardian chat request preprocess is just detector parameter updates"""
+        return self.__preprocess(request)
 
     async def context_analyze(
         self,
