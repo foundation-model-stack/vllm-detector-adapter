@@ -7,7 +7,7 @@ global_fn_list = dict()
 
 
 def detector_dispatcher(types=None):
-    """Decorator to dispath to processing function based on type of the detector.
+    """Decorator to dispatch to processing function based on type of the detector.
 
     Args:
         types (list): Type of the detector this function applies to.

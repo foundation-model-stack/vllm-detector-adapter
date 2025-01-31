@@ -35,7 +35,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     PROMPT_CONTEXT_ANALYSIS_RISKS = ["context_relevance"]
     RESPONSE_CONTEXT_ANALYSIS_RISKS = ["groundedness"]
 
-    ##### Private functions ###################################################
+    ##### Private / Internal functions ###################################################
 
     def __preprocess(
         self, request: Union[ChatDetectionRequest, ContextAnalysisRequest]
