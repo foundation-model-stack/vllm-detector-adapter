@@ -82,6 +82,8 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     ##### Chat request processing functions ####################################
 
+    # Usage of detector_dispatcher allows same function name to be called for different types of
+    # detectors with different arguments and implementation.
     @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
     def apply_task_template(
         self, request: ChatDetectionRequest

@@ -63,6 +63,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         return request
 
+    # Decorating this function to make it cleaner for future iterations of this function
+    # to support other types of detectors
     @detector_dispatcher(types=[DetectorType.TEXT_CONTEXT_DOC])
     def _request_to_chat_completion_request(
         self, request: ContextAnalysisRequest, model_name: str
@@ -142,6 +144,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     ##### General request / response processing functions ##################
 
+    # Used detector_dispatcher decorator to allow for the same function to be called
+    # for different types of detectors with different request types etc.
     @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
     def preprocess_request(
         self, request: ChatDetectionRequest

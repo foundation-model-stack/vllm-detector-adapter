@@ -9,6 +9,17 @@ global_fn_list = dict()
 def detector_dispatcher(types=None):
     """Decorator to dispatch to processing function based on type of the detector.
 
+    This decorator allows us to reuse same function name for different types of detectors.
+    For example, the same function name can be used for text chat and context analysis
+    detectors. These decorated functions for these detectors will have different arguments
+    and implementation but they share the same function name.
+
+    NOTE: At the time of invoking these decorated function, the user needs to specify the type
+    of the detector using fn_type argument.
+
+    CAUTION: Since this decorator allow re-use of the name, one must take care of using different types
+    for testing different functions.
+
     Args:
         types (list): Type of the detector this function applies to.
         args: Positional arguments passed to the processing function.
@@ -17,11 +28,12 @@ def detector_dispatcher(types=None):
     Examples
     --------
 
-    @detector_dispatcher(types["foo"])
+    @detector_dispatcher(types=["foo"])
     def f(x):
         pass
 
-    @detector_dispatcher(types["bar"])
+    # Decorator can take multiple types as well
+    @detector_dispatcher(types=["bar", "baz"])
     def f(x):
         pass
 
