@@ -6,6 +6,7 @@ from unittest.mock import patch
 import asyncio
 
 # Third Party
+from jinja2.exceptions import TemplateError, UndefinedError
 from vllm.config import MultiModalConfig
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionLogProb,
@@ -415,3 +416,41 @@ def test_chat_detection_errors_on_stream(granite_guardian_detection):
     assert type(detection_response) == ErrorResponse
     assert detection_response.code == HTTPStatus.BAD_REQUEST.value
     assert "streaming is not supported" in detection_response.message
+
+
+def test_chat_detection_errors_on_jinja_template_error(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(role="user", content="How do I pick a lock?")
+        ],
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        side_effect=TemplateError(),
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == ErrorResponse
+        assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+        assert "Template error" in detection_response.message
+
+
+def test_chat_detection_errors_on_undefined_jinja_error(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(role="user", content="How do I pick a lock?")
+        ],
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        side_effect=UndefinedError(),
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == ErrorResponse
+        assert detection_response.code == HTTPStatus.INTERNAL_SERVER_ERROR.value
+        assert "Error in calling model" in detection_response.message

@@ -7,6 +7,7 @@ import math
 
 # Third Party
 from fastapi import Request
+from jinja2.exceptions import TemplateError, UndefinedError
 from vllm.entrypoints.openai.protocol import ChatCompletionResponse, ErrorResponse
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 import jinja2
@@ -157,9 +158,31 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         logger.debug("Request to chat completion: %s", chat_completion_request)
 
         # Call chat completion
-        chat_response = await self.create_chat_completion(
-            chat_completion_request, raw_request
-        )
+        try:
+            chat_response = await self.create_chat_completion(
+                chat_completion_request, raw_request
+            )
+        except UndefinedError as e:
+            # Undefined template errors can happen due to a variety of reasons -
+            # e.g. for Granite Guardian it is not limited but including the following
+            # for a particular risk definition: unexpected number of messages, unexpected
+            # ordering of messages, unexpected roles used for particular messages.
+            # Users _may_ be able to correct some of these errors by changing the input
+            # but the error message may not be directly user-comprehensible
+            # This has to be caught first because jinja UndefinedError are TemplateError
+            chat_response = ErrorResponse(
+                message="Error in calling model",
+                type="InternalServerError",
+                code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
+            )
+        except TemplateError as e:
+            # Template errors can be propagated
+            chat_response = ErrorResponse(
+                message=e.message or "Template error",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+
         logger.debug("Raw chat completion response: %s", chat_response)
         if isinstance(chat_response, ErrorResponse):
             # Propagate chat completion errors directly
