@@ -27,6 +27,8 @@ from vllm_detector_adapter import generative_detectors
 from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
+    ContentsDetectionRequest,
+    ContentsDetectionResponse,
     ContextAnalysisRequest,
     DetectionResponse,
 )
@@ -183,6 +185,28 @@ async def create_context_doc_detection(
         )
 
     elif isinstance(detector_response, DetectionResponse):
+        return JSONResponse(content=detector_response.model_dump())
+
+    return JSONResponse({})
+
+
+@router.post("/api/v1/text/contents")
+async def create_contents_detection(
+    request: ContentsDetectionRequest, raw_request: Request
+):
+    """Support content analysis endpoint"""
+
+    detector_response = await chat_detection(raw_request).content_analysis(
+        request, raw_request
+    )
+    print("detector_response: ", detector_response)
+    if isinstance(detector_response, ErrorResponse):
+        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
+        return JSONResponse(
+            content=detector_response.model_dump(), status_code=detector_response.code
+        )
+
+    elif isinstance(detector_response, list):
         return JSONResponse(content=detector_response.model_dump())
 
     return JSONResponse({})

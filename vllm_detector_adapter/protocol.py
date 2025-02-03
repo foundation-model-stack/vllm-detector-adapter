@@ -16,6 +16,8 @@ from vllm.entrypoints.openai.protocol import (
 
 ######## Contents Detection types (currently unused) for the /text/contents detection endpoint
 
+ROLE_OVERRIDE_PARAM_NAME = "role_override"
+
 
 class ContentsDetectionRequest(BaseModel):
     contents: List[str] = Field(
@@ -24,6 +26,11 @@ class ContentsDetectionRequest(BaseModel):
             "Yes, it is",
         ]
     )
+    # Parameter passthrough
+    # NOTE: this server does support optional, `role_override`` parameter
+    # which allows use of different role when making a call to the guardrails LLM
+    # via chat/completions
+    detector_params: Optional[Dict] = {}
 
 
 class ContentsDetectionResponseObject(BaseModel):
@@ -33,6 +40,50 @@ class ContentsDetectionResponseObject(BaseModel):
     detection: str = Field(examples=["positive"])
     detection_type: str = Field(examples=["simple_example"])
     score: float = Field(examples=[0.5])
+
+
+class ContentsDetectionResponse(RootModel):
+    # The root attribute is used here so that the response will appear
+    # as a list instead of a list nested under a key
+    root: List[ContentsDetectionResponseObject]
+
+    @staticmethod
+    def from_chat_completion_response(
+        responses: ChatCompletionResponse, scores: List[float], detection_type: str
+    ):
+        """Function to convert openai chat completion response to [fms] contents detection response"""
+        detection_responses = []
+        for i, choice in enumerate(response.choices):
+            content = choice.message.content
+            print("content: ", content)
+            # NOTE: for providing spans, we currently consider entire generated text as a span.
+            # This is because, at the time of writing, the generative guardrail models does not
+            # provide spefific information about text, which can be used to deduce spans.
+            start = 0
+            end = len(content)
+            if content and isinstance(content, str):
+                response_object = ContentsDetectionResponseObject(
+                    detection_type=detection_type,
+                    detection=content.strip(),
+                    start=start,
+                    end=end,
+                    text=content,
+                    score=scores[i],
+                ).model_dump()
+                detection_responses.append(response_object)
+            else:
+                # This case should be unlikely but we handle it since a detection
+                # can't be returned without the content
+                # A partial response could be considered in the future
+                # but that would likely not look like the current ErrorResponse
+                return ErrorResponse(
+                    message=f"Choice {i} from chat completion does not have content. \
+                        Consider updating input and/or parameters for detections.",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
+
+        return ContentsDetectionResponse(root=detection_responses)
 
 
 ##### Chat Detection types for the /text/chat detection endpoint ###############
