@@ -452,5 +452,5 @@ def test_chat_detection_errors_on_undefined_jinja_error(granite_guardian_detecti
             granite_guardian_detection_instance.chat(chat_request)
         )
         assert type(detection_response) == ErrorResponse
-        assert detection_response.code == HTTPStatus.INTERNAL_SERVER_ERROR.value
-        assert "Error in calling model" in detection_response.message
+        assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+        assert "Template error. Please check request." in detection_response.message

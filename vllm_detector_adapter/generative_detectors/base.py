@@ -171,12 +171,13 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # but the error message may not be directly user-comprehensible
             # This has to be caught first because jinja UndefinedError are TemplateError
             chat_response = ErrorResponse(
-                message="Error in calling model",
-                type="InternalServerError",
-                code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
+                message="Template error. Please check request.",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
             )
         except TemplateError as e:
-            # Template errors can be propagated
+            # Template errors can be propagated, such as those from raise_exception
+            # in the chat_template
             chat_response = ErrorResponse(
                 message=e.message or "Template error",
                 type="BadRequestError",
