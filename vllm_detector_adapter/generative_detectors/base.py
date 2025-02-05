@@ -1,14 +1,18 @@
 # Standard
 from http import HTTPStatus
 from pathlib import Path
-from typing import Awaitable, List, Optional, Union
+from typing import List, Optional, Union
 import asyncio
 import codecs
 import math
 
 # Third Party
 from fastapi import Request
-from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ChatCompletionResponse, ErrorResponse
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ErrorResponse,
+)
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 import jinja2
 import torch
@@ -17,12 +21,12 @@ import torch
 from vllm_detector_adapter.detector_dispatcher import detector_dispatcher
 from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
+    ROLE_OVERRIDE_PARAM_NAME,
     ChatDetectionRequest,
     ContentsDetectionRequest,
     ContentsDetectionResponse,
     ContextAnalysisRequest,
     DetectionResponse,
-    ROLE_OVERRIDE_PARAM_NAME,
 )
 from vllm_detector_adapter.utils import DetectorType
 
@@ -98,20 +102,21 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         return request
 
     @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
-    def preprocess_request(
+    def preprocess_request( # noqa: F811
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Preprocess chat request"""
+        # pylint: disable=redefined-outer-name
         return request
 
     ##### Contents request processing functions ####################################
 
     @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
-    def preprocess_request(
+    def preprocess_request( # noqa: F811
         self, request: ContentsDetectionRequest
     ) -> Union[ContentsDetectionRequest, ErrorResponse]:
         """Preprocess contents request and convert it into appropriate chat request"""
-
+        # pylint: disable=redefined-outer-name
         # Fetch model name from super class: OpenAIServing
         model_name = self.models.base_model_paths[0].name
 
@@ -311,12 +316,5 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # and not every or not cumulative
             if isinstance(result, ErrorResponse):
                 return result
-        import pprint
-        pprint.pprint(results)
-        return [
-            ContentsDetectionResponse.from_chat_completion_response(
-                chat_response, scores, detection_type
-            )
-            for (chat_response, scores, detection_type) in results
-        ]
 
+        return ContentsDetectionResponse.from_chat_completion_response(results)
