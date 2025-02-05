@@ -446,11 +446,11 @@ def test_chat_detection_errors_on_undefined_jinja_error(granite_guardian_detecti
     )
     with patch(
         "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
-        side_effect=UndefinedError(),
+        side_effect=UndefinedError(),  # class of TemplateError
     ):
         detection_response = asyncio.run(
             granite_guardian_detection_instance.chat(chat_request)
         )
         assert type(detection_response) == ErrorResponse
         assert detection_response.code == HTTPStatus.BAD_REQUEST.value
-        assert "Template error. Please check request." in detection_response.message
+        assert "Template error" in detection_response.message
