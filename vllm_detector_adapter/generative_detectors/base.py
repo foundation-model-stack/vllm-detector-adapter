@@ -162,7 +162,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             chat_response = await self.create_chat_completion(
                 chat_completion_request, raw_request
             )
-        except UndefinedError as e:
+        except UndefinedError:
             # Undefined template errors can happen due to a variety of reasons -
             # e.g. for Granite Guardian it is not limited but including the following
             # for a particular risk definition: unexpected number of messages, unexpected
