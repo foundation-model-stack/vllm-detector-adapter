@@ -178,6 +178,16 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         # Calling chat completion and processing of scores is currently
         # the same as for the /chat case
-        return await self.process_chat_completion_with_scores(
+        result = await self.process_chat_completion_with_scores(
             chat_completion_request, raw_request
+        )
+
+        if isinstance(result, ErrorResponse):
+            # Propagate any errors from OpenAI API
+            return result
+        else:
+            (chat_response, scores, detection_type) = result
+
+        return DetectionResponse.from_chat_completion_response(
+            chat_response, scores, detection_type
         )
