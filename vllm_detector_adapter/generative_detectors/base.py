@@ -102,7 +102,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         return request
 
     @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
-    def preprocess_request( # noqa: F811
+    def preprocess_request(  # noqa: F811
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Preprocess chat request"""
@@ -112,7 +112,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
     ##### Contents request processing functions ####################################
 
     @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
-    def preprocess_request( # noqa: F811
+    def preprocess_request(  # noqa: F811
         self, request: ContentsDetectionRequest
     ) -> Union[ContentsDetectionRequest, ErrorResponse]:
         """Preprocess contents request and convert it into appropriate chat request"""

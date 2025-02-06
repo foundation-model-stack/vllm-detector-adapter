@@ -48,10 +48,7 @@ class ContentsDetectionResponse(RootModel):
     root: List[List[ContentsDetectionResponseObject]]
 
     @staticmethod
-    def from_chat_completion_response(
-        results,
-        # responses: ChatCompletionResponse, scores: List[float], detection_type: str
-    ):
+    def from_chat_completion_response(results, contents: List[str]):
         """Function to convert openai chat completion response to [fms] contents detection response
 
         Args:
@@ -63,23 +60,23 @@ class ContentsDetectionResponse(RootModel):
         """
         contents_detection_responses = []
 
-        for (responses, scores, detection_type) in results:
+        for content_idx, (responses, scores, detection_type) in enumerate(results):
 
             detection_responses = []
             for i, choice in enumerate(responses.choices):
                 content = choice.message.content
                 # NOTE: for providing spans, we currently consider entire generated text as a span.
                 # This is because, at the time of writing, the generative guardrail models does not
-                # provide spefific information about text, which can be used to deduce spans.
+                # provide spefific information about input text, which can be used to deduce spans.
                 start = 0
-                end = len(content)
+                end = len(contents[content_idx])
                 if content and isinstance(content, str):
                     response_object = ContentsDetectionResponseObject(
                         detection_type=detection_type,
                         detection=content.strip(),
                         start=start,
                         end=end,
-                        text=content,
+                        text=contents[content_idx],
                         score=scores[i],
                     ).model_dump()
                     detection_responses.append(response_object)
@@ -94,8 +91,6 @@ class ContentsDetectionResponse(RootModel):
                         type="BadRequestError",
                         code=HTTPStatus.BAD_REQUEST.value,
                     )
-
-            # return ContentsDetectionResponse(root=detection_responses)
             contents_detection_responses.append(detection_responses)
 
         return ContentsDetectionResponse(root=contents_detection_responses)
