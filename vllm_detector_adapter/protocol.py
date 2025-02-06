@@ -63,13 +63,14 @@ class ContentsDetectionResponse(RootModel):
         for content_idx, (responses, scores, detection_type) in enumerate(results):
 
             detection_responses = []
+            start = 0
+            end = len(contents[content_idx])
+
             for i, choice in enumerate(responses.choices):
                 content = choice.message.content
                 # NOTE: for providing spans, we currently consider entire generated text as a span.
                 # This is because, at the time of writing, the generative guardrail models does not
                 # provide spefific information about input text, which can be used to deduce spans.
-                start = 0
-                end = len(contents[content_idx])
                 if content and isinstance(content, str):
                     response_object = ContentsDetectionResponseObject(
                         detection_type=detection_type,

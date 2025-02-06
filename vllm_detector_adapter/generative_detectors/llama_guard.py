@@ -54,7 +54,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 new_scores.append(scores[i])
 
                 # Fetch categories as the last line in the response available in csv format
-                for category in content.strip().split("\n")[-1].split(","):
+                for category in content.splitlines()[-1].split(","):
                     category_choice = copy.deepcopy(choice)
                     category_choice.message.content = category
                     new_choices.append(category_choice)
