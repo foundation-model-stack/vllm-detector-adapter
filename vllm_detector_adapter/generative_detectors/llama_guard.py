@@ -27,7 +27,20 @@ class LlamaGuard(ChatCompletionDetectionBase):
     SAFE_TOKEN = "safe"
     UNSAFE_TOKEN = "unsafe"
 
-    def __post_process_results(self, results):
+    def __post_process_result(self, responses, scores, detection_type):
+        """Function to process chat completion results for content type detection.
+
+        Args:
+            responses: ChatCompletionResponse,
+            scores: List[float],
+            detection_type: str,
+        Returns:
+            Tuple(
+                responses: ChatCompletionResponse,
+                scores: List[float],
+                detection_type,
+            )
+        """
         # NOTE: Llama-guard returns specific safety categories in the last line and in a csv format
         # this is guided by the prompt definition of the model, so we expect llama_guard to adhere to it
         # atleast for Llama-Guard-3 (latest at the time of writing)
@@ -35,8 +48,6 @@ class LlamaGuard(ChatCompletionDetectionBase):
         # NOTE: The concept of "choice" doesn't exist for content type detector API, so
         # we will essentially flatten out the responses, so different categories in 1 choice
         # will also look like another choice.
-
-        (responses, scores, detection_type) = results
 
         new_choices = []
         new_scores = []
@@ -119,7 +130,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 return result
             else:
                 # Process results to split out safety categories into separate objects
-                categorized_results.append(self.__post_process_results(result))
+                categorized_results.append(self.__post_process_result(*result))
 
         return ContentsDetectionResponse.from_chat_completion_response(
             categorized_results, request.contents
