@@ -180,7 +180,6 @@ def test_content_analysis_success(detection_base, granite_completion_response):
         assert isinstance(result, ContentsDetectionResponse)
         detections = result.model_dump()
         assert len(detections) == 2
-        print(detections)
         # For first content
         assert detections[0][0]["detection"] == "no"
         assert detections[0][0]["score"] == 0.9

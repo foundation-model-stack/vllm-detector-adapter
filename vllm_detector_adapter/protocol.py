@@ -70,7 +70,7 @@ class ContentsDetectionResponse(RootModel):
                 content = choice.message.content
                 # NOTE: for providing spans, we currently consider entire generated text as a span.
                 # This is because, at the time of writing, the generative guardrail models does not
-                # provide spefific information about input text, which can be used to deduce spans.
+                # provide specific information about input text, which can be used to deduce spans.
                 if content and isinstance(content, str):
                     response_object = ContentsDetectionResponseObject(
                         detection_type=detection_type,
