@@ -217,7 +217,7 @@ def test_context_analyze(llama_guard_detection):
     assert response.code == HTTPStatus.NOT_IMPLEMENTED
 
 
-def test_post_process_content_splits_usafe_categories(llama_guard_detection):
+def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     unsafe_message = "\n\nunsafe\nS2,S3"
     responses = ChatCompletionResponse(
         model="foo",
@@ -267,7 +267,7 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
             )
         ],
     )
-    safe_message = 0.99
+    safe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
     (
