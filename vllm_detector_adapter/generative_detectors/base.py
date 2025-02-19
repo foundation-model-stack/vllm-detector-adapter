@@ -8,6 +8,7 @@ import math
 
 # Third Party
 from fastapi import Request
+from jinja2.exceptions import TemplateError
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -195,9 +196,24 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         logger.debug("Request to chat completion: %s", chat_completion_request)
 
         # Call chat completion
-        chat_response = await self.create_chat_completion(
-            chat_completion_request, raw_request
-        )
+        try:
+            chat_response = await self.create_chat_completion(
+                chat_completion_request, raw_request
+            )
+        except TemplateError as e:
+            # Propagate template errors including those from raise_exception in the chat_template.
+            # UndefinedError, a subclass of TemplateError, can happen due to a variety of reasons -
+            # e.g. for Granite Guardian it is not limited but including the following
+            # for a particular risk definition: unexpected number of messages, unexpected
+            # ordering of messages, unexpected roles used for particular messages.
+            # Users _may_ be able to correct some of these errors by changing the input
+            # but the error message may not be directly user-comprehensible
+            chat_response = ErrorResponse(
+                message=e.message or "Template error",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+
         logger.debug("Raw chat completion response: %s", chat_response)
         if isinstance(chat_response, ErrorResponse):
             # Propagate chat completion errors directly
