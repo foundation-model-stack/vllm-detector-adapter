@@ -333,4 +333,6 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             if isinstance(result, ErrorResponse):
                 return result
 
-        return ContentsDetectionResponse.from_chat_completion_response(results)
+        return ContentsDetectionResponse.from_chat_completion_response(
+            results, request.contents
+        )
