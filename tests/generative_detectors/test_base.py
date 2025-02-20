@@ -98,7 +98,7 @@ async def detection_base():
 
 
 @pytest.fixture(scope="module")
-def granite_completion_response():
+def completion_response():
     log_probs_content_no = ChatCompletionLogProbsContent(
         token="no",
         logprob=-0.0013,
@@ -163,7 +163,7 @@ def test_async_serving_detection_completion_init(detection_base):
     assert output_template.render(({"text": "moose"})) == "bye moose"
 
 
-def test_content_analysis_success(detection_base, granite_completion_response):
+def test_content_analysis_success(detection_base, completion_response):
     base_instance = asyncio.run(detection_base)
 
     content_request = ContentsDetectionRequest(
@@ -171,7 +171,7 @@ def test_content_analysis_success(detection_base, granite_completion_response):
     )
 
     scores = [0.9, 0.1, 0.21, 0.54, 0.33]
-    response = (granite_completion_response, scores, "risk")
+    response = (completion_response, scores, "risk")
     with patch(
         "vllm_detector_adapter.generative_detectors.base.ChatCompletionDetectionBase.process_chat_completion_with_scores",
         return_value=response,
