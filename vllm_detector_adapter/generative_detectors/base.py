@@ -122,7 +122,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         model_name = self.models.base_model_paths[0].name
 
         # Fetch role override from detector_params, otherwise use default
-        role = request.detector_params.get(
+        role = request.detector_params.pop(
             ROLE_OVERRIDE_PARAM_NAME, DEFAULT_ROLE_FOR_CONTENTS_DETECTION
         )
 

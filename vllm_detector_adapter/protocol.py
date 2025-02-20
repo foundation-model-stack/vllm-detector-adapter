@@ -57,6 +57,8 @@ class ContentsDetectionResponse(RootModel):
                 scores: List[float],
                 detection_type,
             ))
+            contents: List[str]
+               List of contents in the request
         """
         contents_detection_responses = []
 
