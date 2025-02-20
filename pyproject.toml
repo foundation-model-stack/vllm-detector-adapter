@@ -19,7 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 vllm-tgis-adapter = [
-    "vllm-tgis-adapter>=0.5.3,<0.5.4"
+    "vllm-tgis-adapter>=0.6.2,<0.6.3"
 ]
 
 ## Dev Extra Sets ##
