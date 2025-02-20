@@ -1,7 +1,6 @@
 # Standard
 from typing import Optional
 import asyncio
-import copy
 
 # Third Party
 from fastapi import Request
@@ -45,33 +44,21 @@ class LlamaGuard(ChatCompletionDetectionBase):
         # this is guided by the prompt definition of the model, so we expect llama_guard to adhere to it
         # atleast for Llama-Guard-3 (latest at the time of writing)
 
-        # NOTE: The concept of "choice" doesn't exist for content type detector API, so
-        # we will essentially flatten out the responses, so different categories in 1 choice
-        # will also look like another choice.
+        # In this function, we will basically remove those "safety" category from output and later on
+        # move them to evidences.
 
         new_choices = []
         new_scores = []
 
+        # NOTE: we are flattening out choices here as different categories
         for i, choice in enumerate(responses.choices):
             content = choice.message.content
             if self.UNSAFE_TOKEN in content:
-                # We will create multiple results for each unsafe category
-                # in addition to "unsafe" as a category itself
-                # NOTE: need to deepcopy, otherwise, choice will get overwritten
-                unsafe_choice = copy.deepcopy(choice)
-                unsafe_choice.message.content = self.UNSAFE_TOKEN
-
-                new_choices.append(unsafe_choice)
+                # Reason for reassigning the content:
+                # We want to remove the safety category from the content
+                choice.message.content = self.UNSAFE_TOKEN
+                new_choices.append(choice)
                 new_scores.append(scores[i])
-
-                # Fetch categories as the last line in the response available in csv format
-                for category in content.splitlines()[-1].split(","):
-                    category_choice = copy.deepcopy(choice)
-                    category_choice.message.content = category
-                    new_choices.append(category_choice)
-                    # NOTE: currently using same score as "unsafe"
-                    # but we need to see if we can revisit this to get better score
-                    new_scores.append(scores[i])
             else:
                 # "safe" case
                 new_choices.append(choice)
@@ -122,7 +109,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
 
         # If there is any error, return that otherwise, return the whole response
         # properly formatted.
-        categorized_results = []
+        processed_result = []
         for result in results:
             # NOTE: we are only sending 1 of the error results
             # and not every or not cumulative
@@ -130,8 +117,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 return result
             else:
                 # Process results to split out safety categories into separate objects
-                categorized_results.append(self.__post_process_result(*result))
+                processed_result.append(self.__post_process_result(*result))
 
         return ContentsDetectionResponse.from_chat_completion_response(
-            categorized_results, request.contents
+            processed_result, request.contents
         )

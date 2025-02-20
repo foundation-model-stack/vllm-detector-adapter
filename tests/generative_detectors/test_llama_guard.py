@@ -245,11 +245,7 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     assert isinstance(responses, ChatCompletionResponse)
     assert responses.choices[0].message.content == "unsafe"
     assert scores[0] == unsafe_score
-    assert responses.choices[1].message.content == "S2"
-    # NOTE: currently we expect same score for each category
-    assert scores[1] == unsafe_score
-    assert responses.choices[2].message.content == "S3"
-    assert scores[2] == unsafe_score
+    assert len(responses.choices) == 1
 
 
 def test_post_process_content_works_for_safe(llama_guard_detection):
