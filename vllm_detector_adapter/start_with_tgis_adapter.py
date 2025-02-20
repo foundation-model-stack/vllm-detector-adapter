@@ -35,7 +35,7 @@ from vllm_detector_adapter.api_server import (
 from vllm_detector_adapter.logging import init_logger
 
 TIMEOUT_KEEP_ALIVE = 5
-TGIS_ADAPTER_LIBRARY_NAME = "vllm-tgis-adapter"
+TGIS_ADAPTER_LIBRARY_NAME = "vllm_tgis_adapter"
 
 logger = init_logger("vllm_detector_adapter.start_with_tgis_adapter")
 
