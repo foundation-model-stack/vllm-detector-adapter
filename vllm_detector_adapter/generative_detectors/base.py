@@ -1,14 +1,19 @@
 # Standard
 from http import HTTPStatus
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
+import asyncio
 import codecs
 import math
 
 # Third Party
 from fastapi import Request
 from jinja2.exceptions import TemplateError
-from vllm.entrypoints.openai.protocol import ChatCompletionResponse, ErrorResponse
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ErrorResponse,
+)
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
 import jinja2
 import torch
@@ -17,7 +22,10 @@ import torch
 from vllm_detector_adapter.detector_dispatcher import detector_dispatcher
 from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
+    ROLE_OVERRIDE_PARAM_NAME,
     ChatDetectionRequest,
+    ContentsDetectionRequest,
+    ContentsDetectionResponse,
     ContextAnalysisRequest,
     DetectionResponse,
 )
@@ -26,6 +34,8 @@ from vllm_detector_adapter.utils import DetectorType
 logger = init_logger(__name__)
 
 START_PROB = 1e-50
+
+DEFAULT_ROLE_FOR_CONTENTS_DETECTION = "user"
 
 
 class ChatCompletionDetectionBase(OpenAIServingChat):
@@ -85,7 +95,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     # Usage of detector_dispatcher allows same function name to be called for different types of
     # detectors with different arguments and implementation.
-    @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
+    @detector_dispatcher(types=[DetectorType.TEXT_CHAT, DetectorType.TEXT_CONTENT])
     def apply_task_template(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
@@ -93,11 +103,39 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         return request
 
     @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
-    def preprocess_request(
+    def preprocess_request(  # noqa: F811
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Preprocess chat request"""
+        # pylint: disable=redefined-outer-name
         return request
+
+    ##### Contents request processing functions ####################################
+
+    @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
+    def preprocess_request(  # noqa: F811
+        self, request: ContentsDetectionRequest
+    ) -> Union[List[ChatCompletionRequest], ErrorResponse]:
+        """Preprocess contents request and convert it into appropriate chat requests"""
+        # pylint: disable=redefined-outer-name
+        # Fetch model name from super class: OpenAIServing
+        model_name = self.models.base_model_paths[0].name
+
+        # Fetch role override from detector_params, otherwise use default
+        role = request.detector_params.pop(
+            ROLE_OVERRIDE_PARAM_NAME, DEFAULT_ROLE_FOR_CONTENTS_DETECTION
+        )
+
+        batch_requests = [
+            ChatCompletionRequest(
+                messages=[{"role": role, "content": content}],
+                model=model_name,
+                **request.detector_params,
+            )
+            for content in request.contents
+        ]
+
+        return batch_requests
 
     ##### General chat completion output processing functions ##################
 
@@ -135,7 +173,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     async def process_chat_completion_with_scores(
         self, chat_completion_request, raw_request
-    ) -> Union[DetectionResponse, ErrorResponse]:
+    ) -> Union[Tuple[ChatCompletionResponse, List[float], str], ErrorResponse]:
         # Return an error for streaming for now. Since the detector API is unary,
         # results would not be streamed back anyway. The chat completion response
         # object would look different, and content would have to be aggregated.
@@ -188,9 +226,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         # Calculate scores
         scores = self.calculate_scores(chat_response)
 
-        return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, self.DETECTION_TYPE
-        )
+        return chat_response, scores, self.DETECTION_TYPE
 
     ##### Detection methods ####################################################
     # Base implementation of other detection endpoints like content can go here
@@ -221,8 +257,18 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Propagate any request problems
             return chat_completion_request
 
-        return await self.process_chat_completion_with_scores(
+        result = await self.process_chat_completion_with_scores(
             chat_completion_request, raw_request
+        )
+
+        if isinstance(result, ErrorResponse):
+            # Propagate any errors from OpenAI API
+            return result
+        else:
+            (chat_response, scores, detection_type) = result
+
+        return DetectionResponse.from_chat_completion_response(
+            chat_response, scores, detection_type
         )
 
     async def context_analyze(
@@ -237,4 +283,56 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             message="context analysis is not supported for the detector",
             type="NotImplementedError",
             code=HTTPStatus.NOT_IMPLEMENTED.value,
+        )
+
+    async def content_analysis(
+        self,
+        request: ContentsDetectionRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[ContentsDetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /text/contents response"""
+
+        # Apply task template if it exists
+        if self.task_template:
+            request = self.apply_task_template(
+                request, fn_type=DetectorType.TEXT_CONTENT
+            )
+            if isinstance(request, ErrorResponse):
+                # Propagate any request problems that will not allow
+                # task template to be applied
+                return request
+
+        # Since real batch processing function doesn't exist at the time of writing,
+        # we are just going to collect all the text from content request and create
+        # separate ChatCompletionRequests and then fire them up and wait asynchronously.
+        # This mirrors how batching is handled in run_batch function in entrypoints/openai/
+        # in vLLM codebase.
+        completion_requests = self.preprocess_request(
+            request, fn_type=DetectorType.TEXT_CONTENT
+        )
+
+        # Fire up all the completion requests asynchronously.
+        tasks = [
+            asyncio.create_task(
+                self.process_chat_completion_with_scores(
+                    completion_request, raw_request
+                )
+            )
+            for completion_request in completion_requests
+        ]
+
+        # Gather all the results
+        # NOTE: The results are guaranteed to be in order of requests
+        results = await asyncio.gather(*tasks)
+
+        # If there is any error, return that otherwise, return the whole response
+        # properly formatted.
+        for result in results:
+            # NOTE: we are only sending 1 of the error results
+            # and not every or not cumulative
+            if isinstance(result, ErrorResponse):
+                return result
+
+        return ContentsDetectionResponse.from_chat_completion_response(
+            results, request.contents
         )

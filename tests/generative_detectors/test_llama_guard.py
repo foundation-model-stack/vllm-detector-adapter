@@ -25,6 +25,8 @@ import pytest_asyncio
 from vllm_detector_adapter.generative_detectors.llama_guard import LlamaGuard
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
+    ContentsDetectionRequest,
+    ContentsDetectionResponse,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
@@ -213,3 +215,90 @@ def test_context_analyze(llama_guard_detection):
     )
     assert type(response) == ErrorResponse
     assert response.code == HTTPStatus.NOT_IMPLEMENTED
+
+
+def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
+    unsafe_message = "\n\nunsafe\nS2,S3"
+    response = ChatCompletionResponse(
+        model="foo",
+        usage=UsageInfo(prompt_tokens=1, total_tokens=1),
+        choices=[
+            ChatCompletionResponseChoice(
+                index=1,
+                message=ChatMessage(
+                    content=unsafe_message,
+                    role=" assistant",
+                ),
+            )
+        ],
+    )
+    unsafe_score = 0.99
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    # NOTE: we are testing private function here
+    (
+        response,
+        scores,
+        _,
+    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
+        response, [unsafe_score], "risk"
+    )
+    assert isinstance(response, ChatCompletionResponse)
+    assert response.choices[0].message.content == "unsafe"
+    assert scores[0] == unsafe_score
+    assert len(response.choices) == 1
+
+
+def test_post_process_content_works_for_safe(llama_guard_detection):
+    safe_message = "safe"
+    response = ChatCompletionResponse(
+        model="foo",
+        usage=UsageInfo(prompt_tokens=1, total_tokens=1),
+        choices=[
+            ChatCompletionResponseChoice(
+                index=1,
+                message=ChatMessage(
+                    content=safe_message,
+                    role=" assistant",
+                ),
+            )
+        ],
+    )
+    safe_score = 0.99
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    # NOTE: we are testing private function here
+    (
+        response,
+        scores,
+        _,
+    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
+        response, [safe_score], "risk"
+    )
+
+    assert isinstance(response, ChatCompletionResponse)
+    assert len(response.choices) == 1
+    assert response.choices[0].message.content == "safe"
+    assert scores[0] == safe_score
+
+
+def test_content_detection_with_llama_guard(
+    llama_guard_detection, llama_guard_completion_response
+):
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    content_request = ContentsDetectionRequest(
+        contents=["Where do I find geese?", "You could go to Canada"]
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.llama_guard.LlamaGuard.create_chat_completion",
+        return_value=llama_guard_completion_response,
+    ):
+        detection_response = asyncio.run(
+            llama_guard_detection_instance.content_analysis(content_request)
+        )
+        assert type(detection_response) == ContentsDetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 contents in the request
+        assert len(detections[0]) == 2  # 2 choices
+        detection_0 = detections[0][0]  # for 1st text in request
+        assert detection_0["detection"] == "safe"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 0.001346767
