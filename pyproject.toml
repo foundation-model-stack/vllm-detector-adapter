@@ -13,8 +13,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.7.1 ; sys_platform == 'darwin'",
-    "vllm>=0.7.1 ; sys_platform != 'darwin'",
+    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.7.2 ; sys_platform == 'darwin'",
+    "vllm>=0.7.0,<0.7.3 ; sys_platform != 'darwin'",
 ]
 
 [project.optional-dependencies]
