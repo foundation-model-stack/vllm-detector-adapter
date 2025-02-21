@@ -1,7 +1,7 @@
 # Standard
 from http import HTTPStatus
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 import asyncio
 import codecs
 import math
@@ -173,7 +173,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     async def process_chat_completion_with_scores(
         self, chat_completion_request, raw_request
-    ) -> Union[DetectionResponse, ErrorResponse]:
+    ) -> Union[Tuple[ChatCompletionResponse, List[float], str], ErrorResponse]:
         # Return an error for streaming for now. Since the detector API is unary,
         # results would not be streamed back anyway. The chat completion response
         # object would look different, and content would have to be aggregated.

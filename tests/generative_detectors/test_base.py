@@ -170,7 +170,7 @@ def test_content_analysis_success(detection_base, completion_response):
         contents=["Where do I find geese?", "You could go to Canada"]
     )
 
-    scores = [0.9, 0.1, 0.21, 0.54, 0.33]
+    scores = [0.9, 0.1]
     response = (completion_response, scores, "risk")
     with patch(
         "vllm_detector_adapter.generative_detectors.base.ChatCompletionDetectionBase.process_chat_completion_with_scores",

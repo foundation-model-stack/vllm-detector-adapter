@@ -219,7 +219,7 @@ def test_context_analyze(llama_guard_detection):
 
 def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     unsafe_message = "\n\nunsafe\nS2,S3"
-    responses = ChatCompletionResponse(
+    response = ChatCompletionResponse(
         model="foo",
         usage=UsageInfo(prompt_tokens=1, total_tokens=1),
         choices=[
@@ -236,21 +236,21 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
     (
-        responses,
+        response,
         scores,
         _,
     ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        responses, [unsafe_score], "risk"
+        response, [unsafe_score], "risk"
     )
-    assert isinstance(responses, ChatCompletionResponse)
-    assert responses.choices[0].message.content == "unsafe"
+    assert isinstance(response, ChatCompletionResponse)
+    assert response.choices[0].message.content == "unsafe"
     assert scores[0] == unsafe_score
-    assert len(responses.choices) == 1
+    assert len(response.choices) == 1
 
 
 def test_post_process_content_works_for_safe(llama_guard_detection):
     safe_message = "safe"
-    responses = ChatCompletionResponse(
+    response = ChatCompletionResponse(
         model="foo",
         usage=UsageInfo(prompt_tokens=1, total_tokens=1),
         choices=[
@@ -267,16 +267,17 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
     (
-        responses,
+        response,
         scores,
         _,
     ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        responses, [safe_message], "risk"
+        response, [safe_score], "risk"
     )
-    assert isinstance(responses, ChatCompletionResponse)
-    assert len(responses.choices) == 1
-    assert responses.choices[0].message.content == "safe"
-    assert scores[0] == safe_message
+
+    assert isinstance(response, ChatCompletionResponse)
+    assert len(response.choices) == 1
+    assert response.choices[0].message.content == "safe"
+    assert scores[0] == safe_score
 
 
 def test_content_detection_with_llama_guard(

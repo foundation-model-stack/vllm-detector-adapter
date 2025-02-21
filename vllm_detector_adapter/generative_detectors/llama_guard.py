@@ -26,16 +26,16 @@ class LlamaGuard(ChatCompletionDetectionBase):
     SAFE_TOKEN = "safe"
     UNSAFE_TOKEN = "unsafe"
 
-    def __post_process_result(self, responses, scores, detection_type):
+    def __post_process_result(self, response, scores, detection_type):
         """Function to process chat completion results for content type detection.
 
         Args:
-            responses: ChatCompletionResponse,
+            response: ChatCompletionResponse,
             scores: List[float],
             detection_type: str,
         Returns:
             Tuple(
-                responses: ChatCompletionResponse,
+                response: ChatCompletionResponse,
                 scores: List[float],
                 detection_type,
             )
@@ -51,7 +51,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
         new_scores = []
 
         # NOTE: we are flattening out choices here as different categories
-        for i, choice in enumerate(responses.choices):
+        for i, choice in enumerate(response.choices):
             content = choice.message.content
             if self.UNSAFE_TOKEN in content:
                 # Reason for reassigning the content:
@@ -64,8 +64,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 new_choices.append(choice)
                 new_scores.append(scores[i])
 
-        responses.choices = new_choices
-        return (responses, new_scores, detection_type)
+        response.choices = new_choices
+        return (response, new_scores, detection_type)
 
     async def content_analysis(
         self,

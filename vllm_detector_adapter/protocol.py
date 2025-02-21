@@ -53,7 +53,7 @@ class ContentsDetectionResponse(RootModel):
 
         Args:
             results: List(Tuple(
-                responses: ChatCompletionResponse,
+                response: ChatCompletionResponse,
                 scores: List[float],
                 detection_type,
             ))
@@ -62,13 +62,13 @@ class ContentsDetectionResponse(RootModel):
         """
         contents_detection_responses = []
 
-        for content_idx, (responses, scores, detection_type) in enumerate(results):
+        for content_idx, (response, scores, detection_type) in enumerate(results):
 
             detection_responses = []
             start = 0
             end = len(contents[content_idx])
 
-            for i, choice in enumerate(responses.choices):
+            for i, choice in enumerate(response.choices):
                 content = choice.message.content
                 # NOTE: for providing spans, we currently consider entire generated text as a span.
                 # This is because, at the time of writing, the generative guardrail models does not
