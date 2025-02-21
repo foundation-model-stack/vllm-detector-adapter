@@ -112,7 +112,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
         processed_result = []
         for result in results:
             # NOTE: we are only sending 1 of the error results
-            # and not every or not cumulative
+            # and not every one (not cumulative)
             if isinstance(result, ErrorResponse):
                 return result
             else:

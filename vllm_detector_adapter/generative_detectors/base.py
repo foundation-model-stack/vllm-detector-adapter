@@ -115,8 +115,8 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
     @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
     def preprocess_request(  # noqa: F811
         self, request: ContentsDetectionRequest
-    ) -> Union[ContentsDetectionRequest, ErrorResponse]:
-        """Preprocess contents request and convert it into appropriate chat request"""
+    ) -> Union[List[ChatCompletionRequest], ErrorResponse]:
+        """Preprocess contents request and convert it into appropriate chat requests"""
         # pylint: disable=redefined-outer-name
         # Fetch model name from super class: OpenAIServing
         model_name = self.models.base_model_paths[0].name
@@ -289,7 +289,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         self,
         request: ContentsDetectionRequest,
         raw_request: Optional[Request] = None,
-    ):
+    ) -> Union[ContentsDetectionResponse, ErrorResponse]:
         """Function used to call chat detection and provide a /text/contents response"""
 
         # Apply task template if it exists

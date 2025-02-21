@@ -27,7 +27,7 @@ class ContentsDetectionRequest(BaseModel):
         ]
     )
     # Parameter passthrough
-    # NOTE: this server does support optional, `role_override`` parameter
+    # NOTE: this endpoint does support the optional `role_override` parameter
     # which allows use of different role when making a call to the guardrails LLM
     # via chat/completions
     detector_params: Optional[Dict] = {}
