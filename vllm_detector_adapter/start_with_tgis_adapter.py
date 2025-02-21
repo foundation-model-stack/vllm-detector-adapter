@@ -52,6 +52,7 @@ else:
         add_tgis_args,
         postprocess_tgis_args,
     )
+    from vllm_tgis_adapter.tgis_utils.logs import add_logging_wrappers
     from vllm_tgis_adapter.utils import check_for_failed_tasks, write_termination_log
 
 # Note: this function references run_http_server in
@@ -66,7 +67,7 @@ async def run_http_server(
 
     app = api_server.build_app(args)
     model_config = await engine.get_model_config()
-    init_app_state_with_detectors(engine, model_config, app.state, args)
+    await init_app_state_with_detectors(engine, model_config, app.state, args)
 
     serve_kwargs = {
         "host": args.host,
@@ -95,6 +96,8 @@ async def start_servers(args: argparse.Namespace) -> None:
 
     tasks: list[asyncio.Task] = []
     async with api_server.build_async_engine_client(args) as engine:
+        add_logging_wrappers(engine)
+
         http_server_task = loop.create_task(
             run_http_server(args, engine),
             name="http_server",
