@@ -35,9 +35,6 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     PROMPT_CONTEXT_ANALYSIS_RISKS = ["context_relevance"]
     RESPONSE_CONTEXT_ANALYSIS_RISKS = ["groundedness"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     ##### Private / Internal functions ###################################################
 
     def __preprocess(
@@ -149,6 +146,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
     def preprocess_request(self, *args, **kwargs):
+        # FIXME: This function delcaration is temporary and should be removed once we fix following
+        # issue with decorator:
+        # ISSUE: Because of inheritance, the base class function with same name gets overriden by the function
+        # declared below for preprocessing TEXT_CHAT type detectors. This fails the validation inside
+        # the detector_dispatcher decorator.
         return super().preprocess_request(
             *args, **kwargs, fn_type=DetectorType.TEXT_CONTENT
         )
