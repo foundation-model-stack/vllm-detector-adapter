@@ -146,7 +146,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
     def preprocess_request(self, *args, **kwargs):
-        # FIXME: This function delcaration is temporary and should be removed once we fix following
+        # FIXME: This function declaration is temporary and should be removed once we fix following
         # issue with decorator:
         # ISSUE: Because of inheritance, the base class function with same name gets overriden by the function
         # declared below for preprocessing TEXT_CHAT type detectors. This fails the validation inside
