@@ -144,10 +144,21 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     ##### General request / response processing functions ##################
 
+    @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
+    def preprocess_request(self, *args, **kwargs):
+        # FIXME: This function declaration is temporary and should be removed once we fix following
+        # issue with decorator:
+        # ISSUE: Because of inheritance, the base class function with same name gets overriden by the function
+        # declared below for preprocessing TEXT_CHAT type detectors. This fails the validation inside
+        # the detector_dispatcher decorator.
+        return super().preprocess_request(
+            *args, **kwargs, fn_type=DetectorType.TEXT_CONTENT
+        )
+
     # Used detector_dispatcher decorator to allow for the same function to be called
     # for different types of detectors with different request types etc.
     @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
-    def preprocess_request(
+    def preprocess_request(  # noqa: F811
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Granite guardian chat request preprocess is just detector parameter updates"""
