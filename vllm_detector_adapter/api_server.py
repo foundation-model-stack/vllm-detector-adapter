@@ -2,7 +2,6 @@
 from argparse import Namespace
 import inspect
 import signal
-import socket
 
 # Third Party
 from fastapi import Request
@@ -15,12 +14,12 @@ from vllm.entrypoints.chat_utils import load_chat_template
 from vllm.entrypoints.launcher import serve_http
 from vllm.entrypoints.logger import RequestLogger
 from vllm.entrypoints.openai import api_server
-from vllm.entrypoints.openai.cli_args import make_arg_parser
+from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
 from vllm.entrypoints.openai.protocol import ErrorResponse
 from vllm.entrypoints.openai.reasoning_parsers import ReasoningParserManager
 from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
 from vllm.entrypoints.openai.tool_parsers import ToolParserManager
-from vllm.utils import FlexibleArgumentParser, set_ulimit
+from vllm.utils import FlexibleArgumentParser, is_valid_ipv6_address, set_ulimit
 from vllm.version import __version__ as VLLM_VERSION
 import uvloop
 
@@ -111,7 +110,9 @@ async def init_app_state_with_detectors(
 
 async def run_server(args, **uvicorn_kwargs) -> None:
     """Server should include all vllm supported endpoints and any
-    newly added detection endpoints"""
+    newly added detection endpoints, much of this parsing code
+    is taken directly from the vllm API server
+    ref. https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/openai/api_server.py"""
     logger.info("vLLM API server version %s", VLLM_VERSION)
     logger.info("args: %s", args)
 
@@ -297,5 +298,6 @@ if __name__ == "__main__":
     parser = add_chat_detection_params(parser)
 
     args = parser.parse_args()
+    validate_parsed_serve_args(args)
 
     uvloop.run(run_server(args))
