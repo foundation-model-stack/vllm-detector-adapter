@@ -257,7 +257,7 @@ async def create_generation_detection(
 ):
     """Support generation analysis endpoint"""
 
-    detector_response = await chat_detection(raw_request).generation_analysis(
+    detector_response = await chat_detection(raw_request).generation_analyze(
         request, raw_request
     )
     if isinstance(detector_response, ErrorResponse):
