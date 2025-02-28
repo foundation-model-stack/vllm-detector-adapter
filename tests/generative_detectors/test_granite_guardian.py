@@ -417,6 +417,33 @@ def test_context_analyze_unsupported_risk(
         )
 
 
+def test_generation_analyze(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    detection_request = GenerationDetectionRequest(
+        prompt="Where is the moose?",
+        generated_text="Maybe Canada?",
+        detector_params={
+            "n": 2,
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.generation_analyze(detection_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "Yes"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 1.0
+
+
 # NOTE: currently these functions are basically just the base implementations,
 # where safe/unsafe tokens are defined in the granite guardian class
 

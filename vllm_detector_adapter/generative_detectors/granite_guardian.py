@@ -231,7 +231,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         """Function used to call chat detection and provide a /generation response."""
 
         # Fetch model name from super class: OpenAIServing
-        model_name = self.models.base_model_paths[0].namet
+        model_name = self.models.base_model_paths[0].name
 
         # If risk_name is not specifically provided for this endpoint, we will add a
         # risk_name, since the user has already decided to use this particular endpoint
