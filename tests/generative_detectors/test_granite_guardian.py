@@ -202,6 +202,46 @@ def test_preprocess_chat_request_with_detector_params(granite_guardian_detection
     }
 
 
+def test_preprocess_chat_request_with_extra_chat_template_kwargs(
+    granite_guardian_detection,
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    # Make sure other chat_template_kwargs do not get overwritten
+    detector_params = {
+        "risk_name": "bias",
+        "risk_definition": "Find the bias!!",
+        "chat_template_kwargs": {"foo": "bar"},
+    }
+    initial_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            )
+        ],
+        detector_params=detector_params,
+    )
+    processed_request = granite_guardian_detection_instance.preprocess_request(
+        initial_request, fn_type=DetectorType.TEXT_CHAT
+    )
+    assert type(processed_request) == ChatDetectionRequest
+    # Processed request should not have these extra params
+    assert "risk_name" not in processed_request.detector_params
+    assert "risk_definition" not in processed_request.detector_params
+    assert "chat_template_kwargs" in processed_request.detector_params
+    assert "foo" in processed_request.detector_params["chat_template_kwargs"]
+    assert processed_request.detector_params["chat_template_kwargs"]["foo"] == "bar"
+    assert (
+        "guardian_config" in processed_request.detector_params["chat_template_kwargs"]
+    )
+    guardian_config = processed_request.detector_params["chat_template_kwargs"][
+        "guardian_config"
+    ]
+    assert guardian_config == {
+        "risk_name": "bias",
+        "risk_definition": "Find the bias!!",
+    }
+
+
 def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     context_request = ContextAnalysisRequest(
