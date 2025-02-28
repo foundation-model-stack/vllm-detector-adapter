@@ -162,6 +162,8 @@ def granite_guardian_completion_response():
 
 ### Tests #####################################################################
 
+#### Helper function tests
+
 
 def test_preprocess_chat_request_with_detector_params(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
@@ -331,6 +333,9 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     )
 
 
+#### Context analysis tests
+
+
 def test_context_analyze(
     granite_guardian_detection, granite_guardian_completion_response
 ):
@@ -417,6 +422,9 @@ def test_context_analyze_unsupported_risk(
         )
 
 
+#### Generation analysis tests
+
+
 def test_generation_analyze(
     granite_guardian_detection, granite_guardian_completion_response
 ):
@@ -443,6 +451,8 @@ def test_generation_analyze(
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 1.0
 
+
+#### Base class functionality tests
 
 # NOTE: currently these functions are basically just the base implementations,
 # where safe/unsafe tokens are defined in the granite guardian class

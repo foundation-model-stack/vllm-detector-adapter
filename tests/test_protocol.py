@@ -18,6 +18,7 @@ from vllm_detector_adapter.protocol import (
     ContentsDetectionResponseObject,
     DetectionChatMessageParam,
     DetectionResponse,
+    GenerationDetectionRequest,
 )
 
 MODEL_NAME = "org/model-name"
@@ -41,6 +42,7 @@ def test_chat_detection_to_completion_request():
     )
     request = chat_request.to_chat_completion_request(MODEL_NAME)
     assert type(request) == ChatCompletionRequest
+    assert len(request.messages) == 2
     assert request.messages[0]["role"] == "user"
     assert request.messages[0]["content"] == "How do I search for moose?"
     assert request.messages[1]["role"] == "assistant"
@@ -61,13 +63,30 @@ def test_chat_detection_to_completion_request_unknown_params():
     # As of vllm >= 0.6.5, extra fields are allowed
     assert type(request) == ChatCompletionRequest
 
+
 #### Generation detection request tests
 
+
 def test_generation_detection_to_completion_request():
-    pass
+    generation_detection_request = GenerationDetectionRequest(
+        prompt="Where do I find geese?",
+        generated_text="Maybe in a lake",
+        detector_params={"n": 4, "temperature": 0.2},
+    )
+    request = generation_detection_request.to_chat_completion_request(MODEL_NAME)
+    assert type(request) == ChatCompletionRequest
+    assert len(request.messages) == 2
+    assert request.messages[0]["role"] == "user"
+    assert request.messages[0]["content"] == "Where do I find geese?"
+    assert request.messages[1]["role"] == "assistant"
+    assert request.messages[1]["content"] == "Maybe in a lake"
+    assert request.model == MODEL_NAME
+    assert request.temperature == 0.2
+    assert request.n == 4
 
 
 #### Contents detection response tests
+
 
 def test_response_from_single_content_detection_response():
     choice = ChatCompletionResponseChoice(
@@ -215,6 +234,7 @@ def test_response_from_single_content_detection_missing_content():
         in detection_response.message
     )
     assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+
 
 #### General detection response tests
 

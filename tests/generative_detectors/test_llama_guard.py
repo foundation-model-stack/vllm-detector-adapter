@@ -158,6 +158,8 @@ def llama_guard_completion_response():
 
 ### Tests #####################################################################
 
+#### Helper function post process tests
+
 
 def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     unsafe_message = "\n\nunsafe\nS2,S3"
@@ -222,6 +224,9 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     assert scores[0] == safe_score
 
 
+#### Content detection tests
+
+
 def test_content_detection_with_llama_guard(
     llama_guard_detection, llama_guard_completion_response
 ):
@@ -245,6 +250,8 @@ def test_content_detection_with_llama_guard(
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 0.001346767
 
+
+#### Base class functionality tests
 
 # NOTE: currently these functions are basically just the base implementations,
 # where safe/unsafe tokens are defined in the llama guard class
