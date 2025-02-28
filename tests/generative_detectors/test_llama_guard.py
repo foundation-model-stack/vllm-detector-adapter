@@ -30,6 +30,7 @@ from vllm_detector_adapter.protocol import (
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
+    GenerationDetectionRequest,
 )
 
 MODEL_NAME = "meta-llama/Llama-Guard-3-8B"  # Example llama guard model
@@ -303,3 +304,28 @@ def test_context_analyze(llama_guard_detection):
     )
     assert type(response) == ErrorResponse
     assert response.code == HTTPStatus.NOT_IMPLEMENTED
+
+
+def test_generation_analyze(llama_guard_detection, llama_guard_completion_response):
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    detection_request = GenerationDetectionRequest(
+        prompt="Where is the moose?",
+        generated_text="Maybe Canada?",
+        detector_params={
+            "n": 2,
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.llama_guard.LlamaGuard.create_chat_completion",
+        return_value=llama_guard_completion_response,
+    ):
+        detection_response = asyncio.run(
+            llama_guard_detection_instance.generation_analyze(detection_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "safe"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 0.001346767
