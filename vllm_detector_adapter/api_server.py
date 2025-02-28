@@ -2,7 +2,6 @@
 from argparse import Namespace
 import inspect
 import signal
-import socket
 
 # Third Party
 from fastapi import Request
@@ -15,10 +14,12 @@ from vllm.entrypoints.chat_utils import load_chat_template
 from vllm.entrypoints.launcher import serve_http
 from vllm.entrypoints.logger import RequestLogger
 from vllm.entrypoints.openai import api_server
-from vllm.entrypoints.openai.cli_args import make_arg_parser
+from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
 from vllm.entrypoints.openai.protocol import ErrorResponse
+from vllm.entrypoints.openai.reasoning_parsers import ReasoningParserManager
 from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
-from vllm.utils import FlexibleArgumentParser
+from vllm.entrypoints.openai.tool_parsers import ToolParserManager
+from vllm.utils import FlexibleArgumentParser, is_valid_ipv6_address, set_ulimit
 from vllm.version import __version__ as VLLM_VERSION
 import uvloop
 
@@ -109,12 +110,38 @@ async def init_app_state_with_detectors(
 
 async def run_server(args, **uvicorn_kwargs) -> None:
     """Server should include all vllm supported endpoints and any
-    newly added detection endpoints"""
+    newly added detection endpoints, much of this parsing code
+    is taken directly from the vllm API server
+    ref. https://github.com/vllm-project/vllm/blob/main/vllm/entrypoints/openai/api_server.py"""
     logger.info("vLLM API server version %s", VLLM_VERSION)
     logger.info("args: %s", args)
 
-    temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    temp_socket.bind(("", args.port))
+    if args.tool_parser_plugin and len(args.tool_parser_plugin) > 3:
+        ToolParserManager.import_tool_parser(args.tool_parser_plugin)
+
+    valid_tool_parses = ToolParserManager.tool_parsers.keys()
+    if args.enable_auto_tool_choice and args.tool_call_parser not in valid_tool_parses:
+        raise KeyError(
+            f"invalid tool call parser: {args.tool_call_parser} "
+            f"(chose from {{ {','.join(valid_tool_parses)} }})"
+        )
+
+    valid_reasoning_parses = ReasoningParserManager.reasoning_parsers.keys()
+    if args.enable_reasoning and args.reasoning_parser not in valid_reasoning_parses:
+        raise KeyError(
+            f"invalid reasoning parser: {args.reasoning_parser} "
+            f"(chose from {{ {','.join(valid_reasoning_parses)} }})"
+        )
+
+    # workaround to make sure that we bind the port before the engine is set up.
+    # This avoids race conditions with ray.
+    # see https://github.com/vllm-project/vllm/issues/8204
+    sock_addr = (args.host or "", args.port)
+    sock = api_server.create_server_socket(sock_addr)
+
+    # workaround to avoid footguns where uvicorn drops requests with too
+    # many concurrent requests active
+    set_ulimit()
 
     def signal_handler(*_) -> None:
         # Interrupt server on sigterm while initializing
@@ -131,10 +158,20 @@ async def run_server(args, **uvicorn_kwargs) -> None:
             engine_client, model_config, app.state, args
         )
 
-        temp_socket.close()
+        def _listen_addr(a: str) -> str:
+            if is_valid_ipv6_address(a):
+                return "[" + a + "]"
+            return a or "0.0.0.0"
+
+        logger.info(
+            "Starting vLLM API server on http://%s:%d",
+            _listen_addr(sock_addr[0]),
+            sock_addr[1],
+        )
 
         shutdown_task = await serve_http(
             app,
+            sock=sock,
             host=args.host,
             port=args.port,
             log_level=args.uvicorn_log_level,
@@ -148,6 +185,8 @@ async def run_server(args, **uvicorn_kwargs) -> None:
 
     # NB: Await server shutdown only after the backend context is exited
     await shutdown_task
+
+    sock.close()
 
 
 @router.post("/api/v1/text/chat")
@@ -259,5 +298,6 @@ if __name__ == "__main__":
     parser = add_chat_detection_params(parser)
 
     args = parser.parse_args()
+    validate_parsed_serve_args(args)
 
     uvloop.run(run_server(args))
