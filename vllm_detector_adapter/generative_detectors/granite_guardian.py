@@ -70,6 +70,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # to be propagated to tokenizer.apply_chat_template during
             # chat completion
             if "chat_template_kwargs" in request.detector_params:
+                # Avoid overwriting other existent chat_template_kwargs
                 request.detector_params["chat_template_kwargs"][
                     "guardian_config"
                 ] = guardian_config

@@ -30,6 +30,7 @@ from vllm_detector_adapter.protocol import (
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
+    GenerationDetectionRequest,
 )
 from vllm_detector_adapter.utils import DetectorType
 
@@ -340,6 +341,35 @@ def test_context_analyze(
         context=[CONTEXT_DOC],
         detector_params={
             "n": 2,
+            "risk_name": "groundedness",
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.context_analyze(context_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "Yes"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 1.0
+
+
+def test_context_analyze_template_kwargs(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 2,
             "chat_template_kwargs": {"guardian_config": {"risk_name": "groundedness"}},
         },
     )
@@ -357,6 +387,34 @@ def test_context_analyze(
         assert detection_0["detection"] == "Yes"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 1.0
+
+
+def test_context_analyze_unsupported_risk(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 2,
+            "risk_name": "boo",
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.context_analyze(context_request)
+        )
+        assert type(detection_response) == ErrorResponse
+        assert detection_response.code == HTTPStatus.BAD_REQUEST
+        assert (
+            "risk_name boo is not compatible with context analysis"
+            in detection_response.message
+        )
 
 
 # NOTE: currently these functions are basically just the base implementations,
