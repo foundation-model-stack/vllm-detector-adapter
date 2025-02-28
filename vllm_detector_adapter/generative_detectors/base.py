@@ -28,6 +28,7 @@ from vllm_detector_adapter.protocol import (
     ContentsDetectionResponse,
     ContextAnalysisRequest,
     DetectionResponse,
+    GenerationDetectionRequest,
 )
 from vllm_detector_adapter.utils import DetectorType
 
@@ -95,18 +96,24 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     # Usage of detector_dispatcher allows same function name to be called for different types of
     # detectors with different arguments and implementation.
-    @detector_dispatcher(types=[DetectorType.TEXT_CHAT, DetectorType.TEXT_CONTENT])
+    @detector_dispatcher(
+        types=[
+            DetectorType.TEXT_CHAT,
+            DetectorType.TEXT_CONTENT,
+            DetectorType.TEXT_GENERATION,
+        ]
+    )
     def apply_task_template(
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Apply task template on the chat request"""
         return request
 
-    @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
+    @detector_dispatcher(types=[DetectorType.TEXT_CHAT, DetectorType.TEXT_GENERATION])
     def preprocess_request(  # noqa: F811
-        self, request: ChatDetectionRequest
-    ) -> Union[ChatDetectionRequest, ErrorResponse]:
-        """Preprocess chat request"""
+        self, request: Union[ChatDetectionRequest, GenerationDetectionRequest]
+    ) -> Union[ChatDetectionRequest, GenerationDetectionRequest, ErrorResponse]:
+        """Preprocess chat request or generation detection request"""
         # pylint: disable=redefined-outer-name
         return request
 
@@ -335,4 +342,46 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         return ContentsDetectionResponse.from_chat_completion_response(
             results, request.contents
+        )
+
+    async def generation_analyze(
+        self,
+        request: GenerationDetectionRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[DetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /generation response"""
+
+        # Fetch model name from super class: OpenAIServing
+        model_name = self.models.base_model_paths[0].name
+
+        # Apply task template if it exists
+        if self.task_template:
+            request = self.apply_task_template(
+                request, fn_type=DetectorType.TEXT_GENERATION
+            )
+            if isinstance(request, ErrorResponse):
+                # Propagate any request problems that will not allow
+                # task template to be applied
+                return request
+
+        # Optionally make model-dependent adjustments for the request
+        request = self.preprocess_request(request, fn_type=DetectorType.TEXT_GENERATION)
+
+        chat_completion_request = request.to_chat_completion_request(model_name)
+        if isinstance(chat_completion_request, ErrorResponse):
+            # Propagate any request problems
+            return chat_completion_request
+
+        result = await self.process_chat_completion_with_scores(
+            chat_completion_request, raw_request
+        )
+
+        if isinstance(result, ErrorResponse):
+            # Propagate any errors from OpenAI API
+            return result
+        else:
+            (chat_response, scores, detection_type) = result
+
+        return DetectionResponse.from_chat_completion_response(
+            chat_response, scores, detection_type
         )
