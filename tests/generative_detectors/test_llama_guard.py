@@ -157,65 +157,6 @@ def llama_guard_completion_response():
 
 ### Tests #####################################################################
 
-# NOTE: currently these functions are basically just the base implementations,
-# where safe/unsafe tokens are defined in the llama guard class
-
-
-def test_calculate_scores(llama_guard_detection, llama_guard_completion_response):
-    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
-    scores = llama_guard_detection_instance.calculate_scores(
-        llama_guard_completion_response
-    )
-    assert len(scores) == 2  # 2 choices
-    assert pytest.approx(scores[0]) == 0.001346767
-    assert pytest.approx(scores[1]) == 0.001346767
-
-
-def test_chat_detection(llama_guard_detection, llama_guard_completion_response):
-    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
-    chat_request = ChatDetectionRequest(
-        messages=[
-            DetectionChatMessageParam(
-                role="user", content="How do I search for moose?"
-            ),
-            DetectionChatMessageParam(
-                role="assistant", content="You could go to Canada"
-            ),
-            DetectionChatMessageParam(role="user", content="interesting"),
-        ]
-    )
-    with patch(
-        "vllm_detector_adapter.generative_detectors.llama_guard.LlamaGuard.create_chat_completion",
-        return_value=llama_guard_completion_response,
-    ):
-        detection_response = asyncio.run(
-            llama_guard_detection_instance.chat(chat_request)
-        )
-        assert type(detection_response) == DetectionResponse
-        detections = detection_response.model_dump()
-        assert len(detections) == 2  # 2 choices
-        detection_0 = detections[0]
-        assert detection_0["detection"] == "safe"
-        assert detection_0["detection_type"] == "risk"
-        assert pytest.approx(detection_0["score"]) == 0.001346767
-
-
-def test_context_analyze(llama_guard_detection):
-    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
-    content = "Where do I find geese?"
-    context_doc = "Geese can be found in lakes, ponds, and rivers"
-    context_request = ContextAnalysisRequest(
-        content=content,
-        context_type="docs",
-        context=[context_doc],
-        detector_params={"n": 2, "temperature": 0.3},
-    )
-    response = asyncio.run(
-        llama_guard_detection_instance.context_analyze(context_request)
-    )
-    assert type(response) == ErrorResponse
-    assert response.code == HTTPStatus.NOT_IMPLEMENTED
-
 
 def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     unsafe_message = "\n\nunsafe\nS2,S3"
@@ -302,3 +243,63 @@ def test_content_detection_with_llama_guard(
         assert detection_0["detection"] == "safe"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 0.001346767
+
+
+# NOTE: currently these functions are basically just the base implementations,
+# where safe/unsafe tokens are defined in the llama guard class
+
+
+def test_calculate_scores(llama_guard_detection, llama_guard_completion_response):
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    scores = llama_guard_detection_instance.calculate_scores(
+        llama_guard_completion_response
+    )
+    assert len(scores) == 2  # 2 choices
+    assert pytest.approx(scores[0]) == 0.001346767
+    assert pytest.approx(scores[1]) == 0.001346767
+
+
+def test_chat_detection(llama_guard_detection, llama_guard_completion_response):
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I search for moose?"
+            ),
+            DetectionChatMessageParam(
+                role="assistant", content="You could go to Canada"
+            ),
+            DetectionChatMessageParam(role="user", content="interesting"),
+        ]
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.llama_guard.LlamaGuard.create_chat_completion",
+        return_value=llama_guard_completion_response,
+    ):
+        detection_response = asyncio.run(
+            llama_guard_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "safe"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 0.001346767
+
+
+def test_context_analyze(llama_guard_detection):
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    content = "Where do I find geese?"
+    context_doc = "Geese can be found in lakes, ponds, and rivers"
+    context_request = ContextAnalysisRequest(
+        content=content,
+        context_type="docs",
+        context=[context_doc],
+        detector_params={"n": 2, "temperature": 0.3},
+    )
+    response = asyncio.run(
+        llama_guard_detection_instance.context_analyze(context_request)
+    )
+    assert type(response) == ErrorResponse
+    assert response.code == HTTPStatus.NOT_IMPLEMENTED
