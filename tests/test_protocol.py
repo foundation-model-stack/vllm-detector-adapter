@@ -61,77 +61,13 @@ def test_chat_detection_to_completion_request_unknown_params():
     # As of vllm >= 0.6.5, extra fields are allowed
     assert type(request) == ChatCompletionRequest
 
+#### Generation detection request tests
 
-#### General response tests
-
-
-def test_response_from_completion_response():
-    # Simplified response without logprobs since not needed for this method
-    choice_0 = ChatCompletionResponseChoice(
-        index=0,
-        message=ChatMessage(
-            role="assistant",
-            content="  moose",
-        ),
-    )
-    choice_1 = ChatCompletionResponseChoice(
-        index=1,
-        message=ChatMessage(
-            role="assistant",
-            content="goose\n\n",
-        ),
-    )
-    response = ChatCompletionResponse(
-        model=MODEL_NAME,
-        choices=[choice_0, choice_1],
-        usage=UsageInfo(prompt_tokens=136, total_tokens=140, completion_tokens=4),
-    )
-    scores = [0.3, 0.7]
-    detection_type = "type"
-    detection_response = DetectionResponse.from_chat_completion_response(
-        response, scores, detection_type
-    )
-    assert type(detection_response) == DetectionResponse
-    detections = detection_response.model_dump()
-    assert len(detections) == 2  # 2 choices
-    detection_0 = detections[0]
-    assert detection_0["detection"] == "moose"
-    assert detection_0["detection_type"] == "type"
-    assert detection_0["score"] == 0.3
-    detection_1 = detections[1]
-    assert detection_1["detection"] == "goose"
-    assert detection_1["detection_type"] == "type"
-    assert detection_1["score"] == 0.7
+def test_generation_detection_to_completion_request():
+    pass
 
 
-def test_response_from_completion_response_missing_content():
-    choice_0 = ChatCompletionResponseChoice(
-        index=0,
-        message=ChatMessage(
-            role="assistant",
-            content="  moose",
-        ),
-    )
-    choice_1 = ChatCompletionResponseChoice(
-        index=1, message=ChatMessage(role="assistant")
-    )
-    response = ChatCompletionResponse(
-        model=MODEL_NAME,
-        choices=[choice_0, choice_1],
-        usage=UsageInfo(prompt_tokens=136, total_tokens=140, completion_tokens=4),
-    )
-    scores = [0.3, 0.7]
-    detection_type = "type"
-    detection_response = DetectionResponse.from_chat_completion_response(
-        response, scores, detection_type
-    )
-    assert type(detection_response) == ErrorResponse
-    assert (
-        "Choice 1 from chat completion does not have content"
-        in detection_response.message
-    )
-    assert detection_response.code == HTTPStatus.BAD_REQUEST.value
-
+#### Contents detection response tests
 
 def test_response_from_single_content_detection_response():
     choice = ChatCompletionResponseChoice(
@@ -276,6 +212,76 @@ def test_response_from_single_content_detection_missing_content():
     assert type(detection_response) == ErrorResponse
     assert (
         "Choice 0 from chat completion does not have content"
+        in detection_response.message
+    )
+    assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+
+#### General detection response tests
+
+
+def test_response_from_completion_response():
+    # Simplified response without logprobs since not needed for this method
+    choice_0 = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(
+            role="assistant",
+            content="  moose",
+        ),
+    )
+    choice_1 = ChatCompletionResponseChoice(
+        index=1,
+        message=ChatMessage(
+            role="assistant",
+            content="goose\n\n",
+        ),
+    )
+    response = ChatCompletionResponse(
+        model=MODEL_NAME,
+        choices=[choice_0, choice_1],
+        usage=UsageInfo(prompt_tokens=136, total_tokens=140, completion_tokens=4),
+    )
+    scores = [0.3, 0.7]
+    detection_type = "type"
+    detection_response = DetectionResponse.from_chat_completion_response(
+        response, scores, detection_type
+    )
+    assert type(detection_response) == DetectionResponse
+    detections = detection_response.model_dump()
+    assert len(detections) == 2  # 2 choices
+    detection_0 = detections[0]
+    assert detection_0["detection"] == "moose"
+    assert detection_0["detection_type"] == "type"
+    assert detection_0["score"] == 0.3
+    detection_1 = detections[1]
+    assert detection_1["detection"] == "goose"
+    assert detection_1["detection_type"] == "type"
+    assert detection_1["score"] == 0.7
+
+
+def test_response_from_completion_response_missing_content():
+    choice_0 = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(
+            role="assistant",
+            content="  moose",
+        ),
+    )
+    choice_1 = ChatCompletionResponseChoice(
+        index=1, message=ChatMessage(role="assistant")
+    )
+    response = ChatCompletionResponse(
+        model=MODEL_NAME,
+        choices=[choice_0, choice_1],
+        usage=UsageInfo(prompt_tokens=136, total_tokens=140, completion_tokens=4),
+    )
+    scores = [0.3, 0.7]
+    detection_type = "type"
+    detection_response = DetectionResponse.from_chat_completion_response(
+        response, scores, detection_type
+    )
+    assert type(detection_response) == ErrorResponse
+    assert (
+        "Choice 1 from chat completion does not have content"
         in detection_response.message
     )
     assert detection_response.code == HTTPStatus.BAD_REQUEST.value
