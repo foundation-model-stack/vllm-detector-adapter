@@ -15,6 +15,7 @@ from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContextAnalysisRequest,
     DetectionResponse,
+    GenerationDetectionRequest,
 )
 from vllm_detector_adapter.utils import DetectorType
 
@@ -34,6 +35,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     # Risks associated with context analysis
     PROMPT_CONTEXT_ANALYSIS_RISKS = ["context_relevance"]
     RESPONSE_CONTEXT_ANALYSIS_RISKS = ["groundedness"]
+
+    # Risks associated with generation analysis
+    GENERATION_DETECTION_RISKS = ["answer_relevance"]
 
     ##### Private / Internal functions ###################################################
 
@@ -57,9 +61,14 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # Move the risk name and/or risk definition to chat_template_kwargs
             # to be propagated to tokenizer.apply_chat_template during
             # chat completion
-            request.detector_params["chat_template_kwargs"] = {
-                "guardian_config": guardian_config
-            }
+            if "chat_template_kwargs" in request.detector_params:
+                request.detector_params["chat_template_kwargs"][
+                    "guardian_config"
+                ] = guardian_config
+            else:
+                request.detector_params["chat_template_kwargs"] = {
+                    "guardian_config": guardian_config
+                }
 
         return request
 
@@ -164,6 +173,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         """Granite guardian chat request preprocess is just detector parameter updates"""
         return self.__preprocess(request)
 
+    ##### Overriding model-class specific endpoint functionality ##################
+
     async def context_analyze(
         self,
         request: ContextAnalysisRequest,
@@ -189,6 +200,74 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         # Calling chat completion and processing of scores is currently
         # the same as for the /chat case
+        result = await self.process_chat_completion_with_scores(
+            chat_completion_request, raw_request
+        )
+
+        if isinstance(result, ErrorResponse):
+            # Propagate any errors from OpenAI API
+            return result
+        else:
+            (chat_response, scores, detection_type) = result
+
+        return DetectionResponse.from_chat_completion_response(
+            chat_response, scores, detection_type
+        )
+
+    async def generation_analyze(
+        self,
+        request: GenerationDetectionRequest,
+        raw_request: Optional[Request] = None,
+    ) -> Union[DetectionResponse, ErrorResponse]:
+        """Function used to call chat detection and provide a /generation response."""
+
+        # Fetch model name from super class: OpenAIServing
+        model_name = self.models.base_model_paths[0].name
+
+        # Apply task template if it exists
+        if self.task_template:
+            request = self.apply_task_template(
+                request, fn_type=DetectorType.TEXT_GENERATION
+            )
+            if isinstance(request, ErrorResponse):
+                # Propagate any request problems that will not allow
+                # task template to be applied
+                return request
+
+        # Optionally make model-dependent adjustments for the request
+        request = self.preprocess_request(request, fn_type=DetectorType.TEXT_GENERATION)
+
+        # Particularly ensure relevant risk_name is provided for granite guardian.
+        # If risk_name is not specifically provided for this endpoint, we will add a
+        # risk_name, since the user has already decided to use this particular endpoint
+        guardian_config = {}
+        if risk_name := request.detector_params.pop(
+            "risk_name", self.GENERATION_DETECTION_RISKS[0]
+        ):
+            if risk_name not in self.GENERATION_DETECTION_RISKS:
+                return ErrorResponse(
+                    message="risk name {} is not compatible with generation analysis".format(
+                        risk_name
+                    ),
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
+            logger.debug("Using risk_name {} for generation analysis".format(risk_name))
+            guardian_config["risk_name"] = risk_name
+        if "chat_template_kwargs" in request.detector_params:
+            request.detector_params["chat_template_kwargs"][
+                "guardian_config"
+            ] = guardian_config
+        else:
+            request.detector_params["chat_template_kwargs"] = {
+                "guardian_config": guardian_config
+            }
+
+        chat_completion_request = request.to_chat_completion_request(model_name)
+        if isinstance(chat_completion_request, ErrorResponse):
+            # Propagate any request problems
+            return chat_completion_request
+
         result = await self.process_chat_completion_with_scores(
             chat_completion_request, raw_request
         )

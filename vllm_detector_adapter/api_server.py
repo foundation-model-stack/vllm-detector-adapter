@@ -32,6 +32,7 @@ from vllm_detector_adapter.protocol import (
     ContentsDetectionResponse,
     ContextAnalysisRequest,
     DetectionResponse,
+    GenerationDetectionRequest,
 )
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
@@ -245,6 +246,27 @@ async def create_contents_detection(
         )
 
     elif isinstance(detector_response, ContentsDetectionResponse):
+        return JSONResponse(content=detector_response.model_dump())
+
+    return JSONResponse({})
+
+
+@router.post("/api/v1/text/generation")
+async def create_generation_detection(
+    request: GenerationDetectionRequest, raw_request: Request
+):
+    """Support generation analysis endpoint"""
+
+    detector_response = await chat_detection(raw_request).generation_analysis(
+        request, raw_request
+    )
+    if isinstance(detector_response, ErrorResponse):
+        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
+        return JSONResponse(
+            content=detector_response.model_dump(), status_code=detector_response.code
+        )
+
+    elif isinstance(detector_response, DetectionResponse):
         return JSONResponse(content=detector_response.model_dump())
 
     return JSONResponse({})
