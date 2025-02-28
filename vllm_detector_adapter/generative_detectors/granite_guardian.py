@@ -37,13 +37,21 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     RESPONSE_CONTEXT_ANALYSIS_RISKS = ["groundedness"]
 
     # Risks associated with generation analysis
-    GENERATION_DETECTION_RISKS = ["answer_relevance"]
+    DEFAULT_GENERATION_DETECTION_RISK = "answer_relevance"
 
     ##### Private / Internal functions ###################################################
 
     def __preprocess(
-        self, request: Union[ChatDetectionRequest, ContextAnalysisRequest]
-    ) -> Union[ChatDetectionRequest, ContextAnalysisRequest, ErrorResponse]:
+        self,
+        request: Union[
+            ChatDetectionRequest, ContextAnalysisRequest, GenerationDetectionRequest
+        ],
+    ) -> Union[
+        ChatDetectionRequest,
+        ContextAnalysisRequest,
+        GenerationDetectionRequest,
+        ErrorResponse,
+    ]:
         """Granite guardian specific parameter updates for risk name and risk definition"""
         # Validation that one of the 'defined' risks is requested will be
         # done through the chat template on each request. Errors will
@@ -222,46 +230,18 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         """Function used to call chat detection and provide a /generation response."""
 
         # Fetch model name from super class: OpenAIServing
-        model_name = self.models.base_model_paths[0].name
+        model_name = self.models.base_model_paths[0].namet
 
-        # Apply task template if it exists
-        if self.task_template:
-            request = self.apply_task_template(
-                request, fn_type=DetectorType.TEXT_GENERATION
-            )
-            if isinstance(request, ErrorResponse):
-                # Propagate any request problems that will not allow
-                # task template to be applied
-                return request
-
-        # Optionally make model-dependent adjustments for the request
-        request = self.preprocess_request(request, fn_type=DetectorType.TEXT_GENERATION)
-
-        # Particularly ensure relevant risk_name is provided for granite guardian.
         # If risk_name is not specifically provided for this endpoint, we will add a
         # risk_name, since the user has already decided to use this particular endpoint
-        guardian_config = {}
-        if risk_name := request.detector_params.pop(
-            "risk_name", self.GENERATION_DETECTION_RISKS[0]
-        ):
-            if risk_name not in self.GENERATION_DETECTION_RISKS:
-                return ErrorResponse(
-                    message="risk name {} is not compatible with generation analysis".format(
-                        risk_name
-                    ),
-                    type="BadRequestError",
-                    code=HTTPStatus.BAD_REQUEST.value,
-                )
-            logger.debug("Using risk_name {} for generation analysis".format(risk_name))
-            guardian_config["risk_name"] = risk_name
-        if "chat_template_kwargs" in request.detector_params:
-            request.detector_params["chat_template_kwargs"][
-                "guardian_config"
-            ] = guardian_config
-        else:
-            request.detector_params["chat_template_kwargs"] = {
-                "guardian_config": guardian_config
-            }
+        if "risk_name" not in request.detector_params:
+            request.detector_params[
+                "risk_name"
+            ] = self.DEFAULT_GENERATION_DETECTION_RISK
+
+        # Task template not applied for generation analysis at this time
+        # Make model-dependent adjustments for the request
+        request = self.__preprocess(request)
 
         chat_completion_request = request.to_chat_completion_request(model_name)
         if isinstance(chat_completion_request, ErrorResponse):
