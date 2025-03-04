@@ -50,7 +50,28 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         self.output_template = self.load_template(output_template)
 
+        self.risk_bank_objs = self._get_predifined_risk_bank()
+
     ##### Template functions ###################################################
+
+    def _get_predifined_risk_bank(self) -> List[jinja2.nodes.Pair]:
+        """Get the list of risks defined in the chat template"""
+
+        if not self.RISK_BANK_VAR_NAME:
+            raise ValueError(
+                f"RISK_BANK_VAR_NAME is not defined for {self.__name__} type of models"
+            )
+
+        ast = self.jinja_env.parse(self.chat_template)
+        risk_bank_objs = []
+
+        for node in ast.find_all(nodes.Assign):
+            if node.target.name == self.RISK_BANK_VAR_NAME:
+                risk_node = node
+                for i in risk_node.node.items:
+                    risk_bank_objs.append(i)
+
+        return risk_bank_objs
 
     def load_template(self, template_path: Optional[Union[Path, str]]) -> str:
         """Function to load template

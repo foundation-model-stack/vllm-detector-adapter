@@ -39,6 +39,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     # Risks associated with generation analysis
     DEFAULT_GENERATION_DETECTION_RISK = "answer_relevance"
 
+    # Risk Bank name defined in the chat template
+    RISK_BANK_VAR_NAME = "risk_bank"
+
     ##### Private / Internal functions ###################################################
 
     def __preprocess(

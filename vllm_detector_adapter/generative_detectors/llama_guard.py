@@ -26,6 +26,9 @@ class LlamaGuard(ChatCompletionDetectionBase):
     SAFE_TOKEN = "safe"
     UNSAFE_TOKEN = "unsafe"
 
+    # Risk Bank name defined in the chat template
+    RISK_BANK_VAR_NAME = "categories"
+
     def __post_process_result(self, response, scores, detection_type):
         """Function to process chat completion results for content type detection.
 
