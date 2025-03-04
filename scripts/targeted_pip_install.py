@@ -4,12 +4,12 @@ by allowing to install dependencies into a separate directory while transitive d
 
 # Standard
 from enum import Enum
-from optparse import Values
 from pprint import pprint
 from typing import Dict, List, Optional
 import argparse
 import json
 import os
+import shlex
 import subprocess
 import tempfile
 import warnings
@@ -18,7 +18,6 @@ import warnings
 from pip._internal.metadata import get_default_environment
 from pip._internal.req import InstallRequirement, constructors, req_file
 from pip._internal.req.req_uninstall import UninstallPathSet
-from pip._internal.utils.encoding import auto_decode
 
 
 class RequirementType(Enum):
@@ -35,18 +34,24 @@ def get_pip_parsed_requirements(file_path):
     """
 
     new_dep_req_parts = {}
+    parser = req_file.build_parser()
 
     # Note: below code is mostly taken from pip._internal.req.req_file.py
     with open(file_path, "rb") as f:
-        content = auto_decode(f.read())
+        content = req_file._decode_req_file(f.read(), file_path)
         # below preprocess function will automatically replace the
         # environment variable
         lines_enum = req_file.preprocess(content)
         for line_number, line in lines_enum:
             args, options_str = req_file.break_args_options(line)
             constraints = False
-            # TODO: Convert options_str to Values using `shlex.split(options_str)`
-            opts = Values()
+            # Convert options_str to Values using `shlex.split(options_str)`
+            try:
+                options = shlex.split(options_str)
+            except ValueError as e:
+                raise f"Could not split options: {options_str}" from e
+
+            opts, _ = parser.parse_args(options, parser.get_default_values())
             parsed_line = req_file.ParsedLine(
                 file_path, line_number, args, opts, constraints
             )

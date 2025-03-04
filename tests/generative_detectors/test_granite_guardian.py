@@ -30,6 +30,7 @@ from vllm_detector_adapter.protocol import (
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
+    GenerationDetectionRequest,
 )
 from vllm_detector_adapter.utils import DetectorType
 
@@ -161,6 +162,8 @@ def granite_guardian_completion_response():
 
 ### Tests #####################################################################
 
+#### Helper function tests
+
 
 def test_preprocess_chat_request_with_detector_params(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
@@ -187,6 +190,46 @@ def test_preprocess_chat_request_with_detector_params(granite_guardian_detection
     assert "risk_name" not in processed_request.detector_params
     assert "risk_definition" not in processed_request.detector_params
     assert "chat_template_kwargs" in processed_request.detector_params
+    assert (
+        "guardian_config" in processed_request.detector_params["chat_template_kwargs"]
+    )
+    guardian_config = processed_request.detector_params["chat_template_kwargs"][
+        "guardian_config"
+    ]
+    assert guardian_config == {
+        "risk_name": "bias",
+        "risk_definition": "Find the bias!!",
+    }
+
+
+def test_preprocess_chat_request_with_extra_chat_template_kwargs(
+    granite_guardian_detection,
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    # Make sure other chat_template_kwargs do not get overwritten
+    detector_params = {
+        "risk_name": "bias",
+        "risk_definition": "Find the bias!!",
+        "chat_template_kwargs": {"foo": "bar"},
+    }
+    initial_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            )
+        ],
+        detector_params=detector_params,
+    )
+    processed_request = granite_guardian_detection_instance.preprocess_request(
+        initial_request, fn_type=DetectorType.TEXT_CHAT
+    )
+    assert type(processed_request) == ChatDetectionRequest
+    # Processed request should not have these extra params
+    assert "risk_name" not in processed_request.detector_params
+    assert "risk_definition" not in processed_request.detector_params
+    assert "chat_template_kwargs" in processed_request.detector_params
+    assert "foo" in processed_request.detector_params["chat_template_kwargs"]
+    assert processed_request.detector_params["chat_template_kwargs"]["foo"] == "bar"
     assert (
         "guardian_config" in processed_request.detector_params["chat_template_kwargs"]
     )
@@ -330,7 +373,39 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     )
 
 
+#### Context analysis tests
+
+
 def test_context_analyze(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 2,
+            "risk_name": "groundedness",
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.context_analyze(context_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "Yes"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 1.0
+
+
+def test_context_analyze_template_kwargs(
     granite_guardian_detection, granite_guardian_completion_response
 ):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
@@ -358,6 +433,66 @@ def test_context_analyze(
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 1.0
 
+
+def test_context_analyze_unsupported_risk(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 2,
+            "risk_name": "boo",
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.context_analyze(context_request)
+        )
+        assert type(detection_response) == ErrorResponse
+        assert detection_response.code == HTTPStatus.BAD_REQUEST
+        assert (
+            "risk_name boo is not compatible with context analysis"
+            in detection_response.message
+        )
+
+
+#### Generation analysis tests
+
+
+def test_generation_analyze(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    detection_request = GenerationDetectionRequest(
+        prompt="Where is the moose?",
+        generated_text="Maybe Canada?",
+        detector_params={
+            "n": 2,
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.generation_analyze(detection_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "Yes"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 1.0
+
+
+#### Base class functionality tests
 
 # NOTE: currently these functions are basically just the base implementations,
 # where safe/unsafe tokens are defined in the granite guardian class

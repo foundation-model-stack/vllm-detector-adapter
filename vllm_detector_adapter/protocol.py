@@ -173,6 +173,42 @@ class ContextAnalysisRequest(BaseModel):
     # is identified, it can be implemented here.
 
 
+##### Generation Detection types for the /text/generation detection endpoint
+
+
+class GenerationDetectionRequest(BaseModel):
+    # Prompt to a model
+    prompt: str = Field(examples=["What is a moose?"])
+    # Generated text from a model
+    generated_text: str = Field(examples=["A moose is not a goose."])
+    # Parameters to pass through to chat completions, optional
+    detector_params: Optional[Dict] = {}
+
+    def to_chat_completion_request(self, model_name: str):
+        """Function to convert [fms] generation detection request to openai chat completion request"""
+        messages = [
+            {"role": "user", "content": self.prompt},
+            {"role": "assistant", "content": self.generated_text},
+        ]
+
+        # Try to pass all detector_params through as additional parameters to chat completions.
+        # We do not try to provide validation or changing of parameters here to not be dependent
+        # on chat completion API changes.
+        try:
+            return ChatCompletionRequest(
+                messages=messages,
+                # NOTE: below is temporary
+                model=model_name,
+                **self.detector_params,
+            )
+        except ValidationError as e:
+            return ErrorResponse(
+                message=repr(e.errors()[0]),
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+
+
 ##### General detection response objects #######################################
 
 
