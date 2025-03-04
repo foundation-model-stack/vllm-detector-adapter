@@ -34,7 +34,7 @@ from vllm_detector_adapter.protocol import (
 )
 
 MODEL_NAME = "meta-llama/Llama-Guard-3-8B"  # Example llama guard model
-CHAT_TEMPLATE = "Dummy chat template for testing {}"
+CHAT_TEMPLATE = '{%-  set categories = ({"S1": "Violent Crimes.","S2": "Non-Violent Crimes.","S3": "Sex Crimes.","S4": "Child Exploitation."})\n-%}"'
 BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 
 
@@ -336,3 +336,11 @@ def test_generation_analyze(llama_guard_detection, llama_guard_completion_respon
         assert detection_0["detection"] == "safe"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 0.001346767
+
+
+def test_risk_bank_extraction(llama_guard_detection):
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+
+    risk_bank_objs = llama_guard_detection_instance.risk_bank_objs
+    assert len(risk_bank_objs) == 4
+    assert risk_bank_objs[0].key.value == "S1"
