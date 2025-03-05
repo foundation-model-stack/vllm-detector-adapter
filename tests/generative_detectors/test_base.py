@@ -200,8 +200,9 @@ def test_content_analysis_success(detection_base, completion_response):
 
 
 def test_risk_bank_absence_errors(detection_base):
-    """Test that absence of risk bank raises a ValueError"""
+    """Test that absence of risk bank raises a ValueError when trying to get the risk bank objects
+    by calling the _get_predefined_risk_bank method"""
     base_instance = asyncio.run(detection_base)
     delattr(base_instance, "RISK_BANK_VAR_NAME")
     with pytest.raises(ValueError) as e:
-        base_instance._get_predifined_risk_bank()
+        base_instance._get_predefined_risk_bank()
