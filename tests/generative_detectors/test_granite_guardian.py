@@ -35,7 +35,7 @@ from vllm_detector_adapter.protocol import (
 from vllm_detector_adapter.utils import DetectorType
 
 MODEL_NAME = "ibm-granite/granite-guardian"  # Example granite-guardian model
-CHAT_TEMPLATE = "Dummy chat template for testing {}"
+CHAT_TEMPLATE = '{%- set risk_bank = ({"social_bias": { "user": "User text 1", "assistant": "Assistant text 1"},"jailbreak": { "user": "User text 2", "assistant": "Assistant text 2"},"profanity": {  "user": "User text 3",  "assistant": "Assistant text 3"}}) %}'
 BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 
 CONTENT = "Where do I find geese?"
@@ -589,3 +589,11 @@ def test_chat_detection_errors_on_undefined_jinja_error(granite_guardian_detecti
         assert type(detection_response) == ErrorResponse
         assert detection_response.code == HTTPStatus.BAD_REQUEST.value
         assert "Template error" in detection_response.message
+
+
+def test_risk_bank_extraction(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+
+    risk_bank_objs = granite_guardian_detection_instance.risk_bank_objs
+    assert len(risk_bank_objs) == 3
+    assert risk_bank_objs[0].key.value == "social_bias"

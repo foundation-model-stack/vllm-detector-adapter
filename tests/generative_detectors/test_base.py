@@ -89,6 +89,7 @@ async def _async_serving_detection_completion_init():
         chat_template_content_format="auto",
         request_logger=None,
     )
+    setattr(detection_completion, "RISK_BANK_VAR_NAME", "DUMMY_RISK_BANK")
     return detection_completion
 
 
@@ -196,3 +197,12 @@ def test_content_analysis_success(detection_base, completion_response):
         assert detections[1][0]["score"] == 0.9
         assert detections[1][0]["start"] == 0
         assert detections[1][0]["end"] == len(content_request.contents[1])
+
+
+def test_risk_bank_absence_errors(detection_base):
+    """Test that absence of risk bank raises a ValueError when trying to get the risk bank objects
+    by calling the _get_predefined_risk_bank method"""
+    base_instance = asyncio.run(detection_base)
+    delattr(base_instance, "RISK_BANK_VAR_NAME")
+    with pytest.raises(ValueError) as e:
+        base_instance._get_predefined_risk_bank()
