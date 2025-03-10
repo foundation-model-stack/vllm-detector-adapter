@@ -160,7 +160,8 @@ def granite_guardian_completion_response():
     )
 
 
-@pytest.fixture(scope="module")
+# Initialized per function since response could be updated
+@pytest.fixture(scope="function")
 def granite_guardian_completion_response_extra_content():
     log_probs_content_no = ChatCompletionLogProbsContent(
         token="No",
@@ -434,13 +435,19 @@ def test_process_metadata_list_no_metadata(
 ):
     # Older Granite Guardian versions do not provide info like confidence
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    metadata_list = granite_guardian_detection_instance.process_metadata_list(
+    (
+        chat_completion_response,
+        metadata_list,
+    ) = granite_guardian_detection_instance.process_metadata_list(
         granite_guardian_completion_response
     )
     assert len(metadata_list) == 2  # 2 choices
     # Both empty dicts since there was no extra response info
     assert metadata_list[0] == {}
     assert metadata_list[1] == {}
+    # Chat completion response should be unchanged
+    chat_completion_response.choices[0].message.content == "Yes"
+    chat_completion_response.choices[1].message.content == "Yes"
 
 
 def test_process_metadata_list_with_confidence(
@@ -448,12 +455,18 @@ def test_process_metadata_list_with_confidence(
 ):
     # Starting Granite Guardian 3.2, info like confidence is provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    metadata_list = granite_guardian_detection_instance.process_metadata_list(
+    (
+        chat_completion_response,
+        metadata_list,
+    ) = granite_guardian_detection_instance.process_metadata_list(
         granite_guardian_completion_response_extra_content
     )
     assert len(metadata_list) == 2  # 2 choices
     assert metadata_list[0] == {"confidence": "High"}
     assert metadata_list[1] == {"confidence": "Low"}
+    # Chat completion response should be updated
+    chat_completion_response.choices[0].message.content == "No"
+    chat_completion_response.choices[0].message.content == "Yes"
 
 
 #### Context analysis tests
@@ -575,22 +588,7 @@ def test_generation_analyze(
         assert pytest.approx(detection_0["score"]) == 1.0
 
 
-#### Base class functionality tests
-
-# NOTE: currently these functions are basically just the base implementations,
-# where safe/unsafe tokens are defined in the granite guardian class
-
-
-def test_calculate_scores(
-    granite_guardian_detection, granite_guardian_completion_response
-):
-    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    scores = granite_guardian_detection_instance.calculate_scores(
-        granite_guardian_completion_response
-    )
-    assert len(scores) == 2  # 2 choices
-    assert pytest.approx(scores[0]) == 1.0
-    assert pytest.approx(scores[1]) == 1.0
+#### Chat detection tests
 
 
 def test_chat_detection(
@@ -644,13 +642,31 @@ def test_chat_detection_with_confidence(
         detection_0 = detections[0]
         assert detection_0["detection"] == "No"
         assert detection_0["detection_type"] == "risk"
-        assert pytest.approx(detection_0["score"]) == 1.0
+        assert pytest.approx(detection_0["score"]) == 0.9377647
         assert detection_0["metadata"] == {"confidence": "High"}
         detection_1 = detections[1]
         assert detection_1["detection"] == "Yes"
         assert detection_1["detection_type"] == "risk"
-        assert pytest.approx(detection_1["score"]) == 1.0
+        assert pytest.approx(detection_1["score"]) == 0.9377647
         assert detection_1["metadata"] == {"confidence": "Low"}
+
+
+#### Base class functionality tests
+
+# NOTE: currently these functions are basically just the base implementations,
+# where safe/unsafe tokens are defined in the granite guardian class
+
+
+def test_calculate_scores(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    scores = granite_guardian_detection_instance.calculate_scores(
+        granite_guardian_completion_response
+    )
+    assert len(scores) == 2  # 2 choices
+    assert pytest.approx(scores[0]) == 1.0
+    assert pytest.approx(scores[1]) == 1.0
 
 
 def test_chat_detection_errors_on_stream(granite_guardian_detection):
