@@ -183,13 +183,15 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
         response,
         scores,
         _,
+        metadata_list,
     ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        response, [unsafe_score], "risk"
+        response, [unsafe_score], "risk", [{"foo": "bar"}]
     )
     assert isinstance(response, ChatCompletionResponse)
     assert response.choices[0].message.content == "unsafe"
     assert scores[0] == unsafe_score
     assert len(response.choices) == 1
+    assert metadata_list == [{"foo": "bar"}]
 
 
 def test_post_process_content_works_for_safe(llama_guard_detection):
@@ -214,8 +216,9 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
         response,
         scores,
         _,
+        _,
     ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        response, [safe_score], "risk"
+        response, [safe_score], "risk", None
     )
 
     assert isinstance(response, ChatCompletionResponse)

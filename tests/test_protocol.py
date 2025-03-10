@@ -104,6 +104,7 @@ def test_response_from_single_content_detection_response():
     contents = ["sample sentence"]
     scores = [0.9]
     detection_type = "risk"
+    metadata_list = None
 
     expected_response = ContentsDetectionResponse(
         root=[
@@ -115,12 +116,13 @@ def test_response_from_single_content_detection_response():
                     text=contents[0],
                     detection="moose",
                     detection_type=detection_type,
+                    metadata={},
                 )
             ]
         ]
     )
     detection_response = ContentsDetectionResponse.from_chat_completion_response(
-        [(chat_response, scores, detection_type)], contents
+        [(chat_response, scores, detection_type, metadata_list)], contents
     )
     assert isinstance(detection_response, ContentsDetectionResponse)
     assert detection_response == expected_response
@@ -153,9 +155,12 @@ def test_response_from_multi_contents_detection_response():
     )
 
     contents = ["sample sentence 1", "sample sentence 2"]
-    # scores for each content is a list of scores (for multi-label)
+    # Scores for each content is a list of scores (for multi-label)
     scores = [[0.9], [0.6]]
     detection_type = "risk"
+    # Metadata for each chat esponse
+    metadata_list_0 = [{"hi": "bye"}]
+    metadata_list_1 = [{"large": "small"}]
 
     content_response_0 = [
         ContentsDetectionResponseObject(
@@ -165,6 +170,7 @@ def test_response_from_multi_contents_detection_response():
             text=contents[0],
             detection="moose",
             detection_type=detection_type,
+            metadata=metadata_list_0[0],
         )
     ]
     content_response_1 = [
@@ -175,6 +181,7 @@ def test_response_from_multi_contents_detection_response():
             text=contents[1],
             detection="goose",
             detection_type=detection_type,
+            metadata=metadata_list_1[0],
         )
     ]
     expected_response = ContentsDetectionResponse(
@@ -182,8 +189,8 @@ def test_response_from_multi_contents_detection_response():
     )
     detection_response = ContentsDetectionResponse.from_chat_completion_response(
         [
-            (chat_response_0, scores[0], detection_type),
-            (chat_response_1, scores[1], detection_type),
+            (chat_response_0, scores[0], detection_type, metadata_list_0),
+            (chat_response_1, scores[1], detection_type, metadata_list_1),
         ],
         contents,
     )
@@ -220,11 +227,12 @@ def test_response_from_single_content_detection_missing_content():
     # scores for each content is a list of scores (for multi-label)
     scores = [[0.9], [0.6]]
     detection_type = "risk"
+    metadata_list = None
 
     detection_response = ContentsDetectionResponse.from_chat_completion_response(
         [
-            (chat_response_0, scores[0], detection_type),
-            (chat_response_1, scores[1], detection_type),
+            (chat_response_0, scores[0], detection_type, {}),
+            (chat_response_1, scores[1], detection_type, {}),
         ],
         contents,
     )
@@ -262,8 +270,9 @@ def test_response_from_completion_response():
     )
     scores = [0.3, 0.7]
     detection_type = "type"
+    metadata_list = [{"hi": "bye"}, {"foo": "bar"}]
     detection_response = DetectionResponse.from_chat_completion_response(
-        response, scores, detection_type
+        response, scores, detection_type, metadata_list
     )
     assert type(detection_response) == DetectionResponse
     detections = detection_response.model_dump()
@@ -272,10 +281,40 @@ def test_response_from_completion_response():
     assert detection_0["detection"] == "moose"
     assert detection_0["detection_type"] == "type"
     assert detection_0["score"] == 0.3
+    assert detection_0["metadata"] == {"hi": "bye"}
     detection_1 = detections[1]
     assert detection_1["detection"] == "goose"
     assert detection_1["detection_type"] == "type"
     assert detection_1["score"] == 0.7
+    assert detection_1["metadata"] == {"foo": "bar"}
+
+
+def test_response_from_completion_response_no_metadata():
+    choice_0 = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(
+            role="assistant",
+            content="  moose",
+        ),
+    )
+    response = ChatCompletionResponse(
+        model=MODEL_NAME,
+        choices=[choice_0],
+        usage=UsageInfo(prompt_tokens=20, total_tokens=40, completion_tokens=4),
+    )
+    scores = [0.5]
+    detection_type = "type"
+    detection_response = DetectionResponse.from_chat_completion_response(
+        response, scores, detection_type, metadata_list=None
+    )
+    assert type(detection_response) == DetectionResponse
+    detections = detection_response.model_dump()
+    assert len(detections) == 1  # 1 choice
+    detection_0 = detections[0]
+    assert detection_0["detection"] == "moose"
+    assert detection_0["detection_type"] == "type"
+    assert detection_0["score"] == 0.5
+    assert detection_0["metadata"] == {}
 
 
 def test_response_from_completion_response_missing_content():
@@ -297,7 +336,7 @@ def test_response_from_completion_response_missing_content():
     scores = [0.3, 0.7]
     detection_type = "type"
     detection_response = DetectionResponse.from_chat_completion_response(
-        response, scores, detection_type
+        response, scores, detection_type, metadata_list=None
     )
     assert type(detection_response) == ErrorResponse
     assert (

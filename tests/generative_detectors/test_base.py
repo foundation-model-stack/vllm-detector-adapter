@@ -172,7 +172,7 @@ def test_content_analysis_success(detection_base, completion_response):
     )
 
     scores = [0.9, 0.1]
-    response = (completion_response, scores, "risk")
+    response = (completion_response, scores, "risk", None)
     with patch(
         "vllm_detector_adapter.generative_detectors.base.ChatCompletionDetectionBase.process_chat_completion_with_scores",
         return_value=response,
@@ -186,17 +186,20 @@ def test_content_analysis_success(detection_base, completion_response):
         assert detections[0][0]["score"] == 0.9
         assert detections[0][0]["start"] == 0
         assert detections[0][0]["end"] == len(content_request.contents[0])
+        assert detections[0][0]["metadata"] == {}
         # 2nd choice as 2nd label
         assert detections[0][1]["detection"] == "yes"
         assert detections[0][1]["score"] == 0.1
         assert detections[0][1]["start"] == 0
         assert detections[0][1]["end"] == len(content_request.contents[0])
+        assert detections[0][1]["metadata"] == {}
         # For 2nd content, we are only testing 1st detection for simplicity
         # Note: detection is same, because of how mock is working.
         assert detections[1][0]["detection"] == "no"
         assert detections[1][0]["score"] == 0.9
         assert detections[1][0]["start"] == 0
         assert detections[1][0]["end"] == len(content_request.contents[1])
+        assert detections[1][0]["metadata"] == {}
 
 
 def test_risk_bank_absence_errors(detection_base):
