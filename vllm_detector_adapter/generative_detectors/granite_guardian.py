@@ -1,7 +1,6 @@
 # Standard
 from http import HTTPStatus
 from typing import Dict, List, Optional, Tuple, Union
-import copy
 import re
 
 # Third Party

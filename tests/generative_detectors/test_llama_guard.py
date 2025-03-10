@@ -297,6 +297,7 @@ def test_chat_detection(llama_guard_detection, llama_guard_completion_response):
         assert detection_0["detection"] == "safe"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 0.001346767
+        assert detection_0["metadata"] == {}
 
 
 def test_context_analyze(llama_guard_detection):
@@ -339,6 +340,7 @@ def test_generation_analyze(llama_guard_detection, llama_guard_completion_respon
         assert detection_0["detection"] == "safe"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 0.001346767
+        assert detection_0["metadata"] == {}
 
 
 def test_risk_bank_extraction(llama_guard_detection):

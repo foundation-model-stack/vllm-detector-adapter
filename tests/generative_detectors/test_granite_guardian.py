@@ -499,6 +499,37 @@ def test_context_analyze(
         assert detection_0["detection"] == "Yes"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 1.0
+        assert detection_0["metadata"] == {}
+
+
+def test_context_analyze_with_confidence(
+    granite_guardian_detection, granite_guardian_completion_response_extra_content
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 2,
+            "risk_name": "groundedness",
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response_extra_content,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.context_analyze(context_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "No"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 0.9377647
+        assert detection_0["metadata"] == {"confidence": "High"}
 
 
 def test_context_analyze_template_kwargs(
@@ -586,6 +617,35 @@ def test_generation_analyze(
         assert detection_0["detection"] == "Yes"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 1.0
+        assert detection_0["metadata"] == {}
+
+
+def test_generation_analyze_with_confidence(
+    granite_guardian_detection, granite_guardian_completion_response_extra_content
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    detection_request = GenerationDetectionRequest(
+        prompt="Where is the moose?",
+        generated_text="Maybe Canada?",
+        detector_params={
+            "n": 2,
+        },
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response_extra_content,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.generation_analyze(detection_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "No"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 0.9377647
+        assert detection_0["metadata"] == {"confidence": "High"}
 
 
 #### Chat detection tests
