@@ -1,11 +1,16 @@
 # Standard
 from http import HTTPStatus
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
+import re
 
 # Third Party
 from fastapi import Request
 from pydantic import ValidationError
-from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ErrorResponse
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ErrorResponse,
+)
 
 # Local
 from vllm_detector_adapter.detector_dispatcher import detector_dispatcher
@@ -41,6 +46,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "risk_bank"
+
+    # Attribute to be put in metadata - can expand to list in future
+    METADATA_ATTRIBUTE = "confidence"
 
     ##### Private / Internal functions ###################################################
 
@@ -163,7 +171,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 code=HTTPStatus.BAD_REQUEST.value,
             )
 
-    ##### General request / response processing functions ##################
+    ##### General overriding request / response processing functions ##################
 
     @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
     def preprocess_request(self, *args, **kwargs):
@@ -184,6 +192,30 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Granite guardian chat request preprocess is just detector parameter updates"""
         return self.__preprocess(request)
+
+    def process_metadata_list(
+        self, response: ChatCompletionResponse
+    ) -> Optional[List[Dict]]:
+        """Process Granite Guardian chat completion tags for metadata. Metadata corresponds to
+        one Dict per choice in the chat completion response
+        """
+        metadata_list = []
+        for choice in response.choices:
+            content = choice.message.content
+            metadata = (
+                {}
+            )  # Avoid messing up metadata order in case content is not present
+            if content and isinstance(content, str):
+                regex_str = (
+                    f"<{self.METADATA_ATTRIBUTE}> (.*?) </{self.METADATA_ATTRIBUTE}>"
+                )
+                # Some (older) Granite Guardian versions may not contain extra information
+                # for metadata. Make sure this does not break anything
+                if metadata_search := re.search(regex_str, content):
+                    metadata_content = metadata_search.group(1).strip()
+                    metadata = {self.METADATA_ATTRIBUTE: metadata_content}
+            metadata_list.append(metadata)
+        return metadata_list
 
     ##### Overriding model-class specific endpoint functionality ##################
 

@@ -160,6 +160,59 @@ def granite_guardian_completion_response():
     )
 
 
+@pytest.fixture(scope="module")
+def granite_guardian_completion_response_extra_content():
+    log_probs_content_no = ChatCompletionLogProbsContent(
+        token="No",
+        logprob=-2.8,
+        # 5 logprobs requested for scoring, skipping bytes for conciseness
+        top_logprobs=[
+            ChatCompletionLogProb(token="No", logprob=-2.8),
+            ChatCompletionLogProb(token="Yes", logprob=-0.09),
+            ChatCompletionLogProb(token="assistant", logprob=-5.00),
+            ChatCompletionLogProb(token="You", logprob=-5.88),
+            ChatCompletionLogProb(token=" Yes", logprob=-6.05),
+        ],
+    )
+    log_probs_content_random = ChatCompletionLogProbsContent(
+        token="<",
+        logprob=0.00,
+        # 5 logprobs requested for scoring, skipping bytes for conciseness
+        top_logprobs=[
+            ChatCompletionLogProb(token="<", logprob=0.00),
+            ChatCompletionLogProb(token=" <", logprob=-15.52),
+            ChatCompletionLogProb(token="</", logprob=-15.64),
+            ChatCompletionLogProb(token="Assistant", logprob=-15.98),
+            ChatCompletionLogProb(token="<<", logprob=-16.73),
+        ],
+    )
+    choice_0 = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(
+            role="assistant",
+            content="No\n<confidence> High </confidence>",
+        ),
+        logprobs=ChatCompletionLogProbs(
+            content=[log_probs_content_no, log_probs_content_random]
+        ),
+    )
+    choice_1 = ChatCompletionResponseChoice(
+        index=1,
+        message=ChatMessage(
+            role="assistant",
+            content="Yes\n<confidence> Low </confidence>",
+        ),
+        logprobs=ChatCompletionLogProbs(
+            content=[log_probs_content_random, log_probs_content_no]
+        ),
+    )
+    yield ChatCompletionResponse(
+        model=MODEL_NAME,
+        choices=[choice_0, choice_1],
+        usage=UsageInfo(prompt_tokens=142, total_tokens=162, completion_tokens=20),
+    )
+
+
 ### Tests #####################################################################
 
 #### Helper function tests
@@ -373,6 +426,36 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     )
 
 
+#### Metadata processing tests
+
+
+def test_process_metadata_list_no_metadata(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    # Older Granite Guardian versions do not provide info like confidence
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    metadata_list = granite_guardian_detection_instance.process_metadata_list(
+        granite_guardian_completion_response
+    )
+    assert len(metadata_list) == 2  # 2 choices
+    # Both empty dicts since there was no extra response info
+    assert metadata_list[0] == {}
+    assert metadata_list[1] == {}
+
+
+def test_process_metadata_list_with_confidence(
+    granite_guardian_detection, granite_guardian_completion_response_extra_content
+):
+    # Starting Granite Guardian 3.2, info like confidence is provided
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    metadata_list = granite_guardian_detection_instance.process_metadata_list(
+        granite_guardian_completion_response_extra_content
+    )
+    assert len(metadata_list) == 2  # 2 choices
+    assert metadata_list[0] == {"confidence": "High"}
+    assert metadata_list[1] == {"confidence": "Low"}
+
+
 #### Context analysis tests
 
 
@@ -535,6 +618,39 @@ def test_chat_detection(
         assert detection_0["detection"] == "Yes"
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 1.0
+
+
+def test_chat_detection_with_confidence(
+    granite_guardian_detection, granite_guardian_completion_response_extra_content
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            )
+        ]
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response_extra_content,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "No"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 1.0
+        assert detection_0["metadata"] == {"confidence": "High"}
+        detection_1 = detections[1]
+        assert detection_1["detection"] == "Yes"
+        assert detection_1["detection_type"] == "risk"
+        assert pytest.approx(detection_1["score"]) == 1.0
+        assert detection_1["metadata"] == {"confidence": "Low"}
 
 
 def test_chat_detection_errors_on_stream(granite_guardian_detection):
