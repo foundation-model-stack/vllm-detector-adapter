@@ -12,6 +12,7 @@ from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ContentsDetectionRequest,
     ContentsDetectionResponse,
+    ContentsDetectionResponseObject,
 )
 from vllm_detector_adapter.utils import DetectorType
 
@@ -29,19 +30,16 @@ class LlamaGuard(ChatCompletionDetectionBase):
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "categories"
 
-    def __post_process_result(self, response, scores, detection_type):
+    def __post_process_result(self, response, scores, detection_type, req_content):
         """Function to process chat completion results for content type detection.
 
         Args:
             response: ChatCompletionResponse,
             scores: List[float],
             detection_type: str,
+            req_content: str
         Returns:
-            Tuple(
-                response: ChatCompletionResponse,
-                scores: List[float],
-                detection_type,
-            )
+            ContentsDetectionResponseObject
         """
         # NOTE: Llama-guard returns specific safety categories in the last line and in a csv format
         # this is guided by the prompt definition of the model, so we expect llama_guard to adhere to it
@@ -68,7 +66,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 new_scores.append(scores[i])
 
         response.choices = new_choices
-        return (response, new_scores, detection_type)
+        return ContentsDetectionResponseObject.from_chat_completion_response(response, new_scores, detection_type, req_content)
 
     async def content_analysis(
         self,
@@ -113,15 +111,16 @@ class LlamaGuard(ChatCompletionDetectionBase):
         # If there is any error, return that otherwise, return the whole response
         # properly formatted.
         processed_result = []
-        for result in results:
+        for result_idx, result in enumerate(results):
             # NOTE: we are only sending 1 of the error results
             # and not every one (not cumulative)
             if isinstance(result, ErrorResponse):
                 return result
             else:
                 # Process results to split out safety categories into separate objects
-                processed_result.append(self.__post_process_result(*result))
+                processed_result.append(self.__post_process_result(*result, request.contents[result_idx]))
 
-        return ContentsDetectionResponse.from_chat_completion_response(
-            processed_result, request.contents
-        )
+        return ContentsDetectionResponse(root=processed_result)
+        # return ContentsDetectionResponse.from_chat_completion_response(
+        #     processed_result, request.contents
+        # )

@@ -27,6 +27,7 @@ from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContentsDetectionRequest,
     ContentsDetectionResponse,
+    ContentsDetectionResponseObject,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
@@ -162,6 +163,7 @@ def llama_guard_completion_response():
 
 
 def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
+    content = "test string"
     unsafe_message = "\n\nunsafe\nS2,S3"
     response = ChatCompletionResponse(
         model="foo",
@@ -179,20 +181,26 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     unsafe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
-    (
-        response,
-        scores,
-        _,
-    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        response, [unsafe_score], "risk"
+    response = llama_guard_detection_instance._LlamaGuard__post_process_result(
+        response, [unsafe_score], "risk", content
     )
-    assert isinstance(response, ChatCompletionResponse)
-    assert response.choices[0].message.content == "unsafe"
-    assert scores[0] == unsafe_score
-    assert len(response.choices) == 1
+
+    assert len(response) == 1
+
+    contents_detection_res = response[0]
+
+    assert isinstance(contents_detection_res, ContentsDetectionResponseObject)
+    assert contents_detection_res.start == 0
+    assert contents_detection_res.end == len(content)
+    assert contents_detection_res.text == content
+    assert contents_detection_res.score == unsafe_score
+    assert contents_detection_res.detection == "unsafe"
+    assert contents_detection_res.detection_type == "risk"
+    # assert contents_detection_res.metadata == {}
 
 
 def test_post_process_content_works_for_safe(llama_guard_detection):
+    content = "test string"
     safe_message = "safe"
     response = ChatCompletionResponse(
         model="foo",
@@ -210,18 +218,22 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     safe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
-    (
-        response,
-        scores,
-        _,
-    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        response, [safe_score], "risk"
+    response = llama_guard_detection_instance._LlamaGuard__post_process_result(
+        response, [safe_score], "risk", content
     )
 
-    assert isinstance(response, ChatCompletionResponse)
-    assert len(response.choices) == 1
-    assert response.choices[0].message.content == "safe"
-    assert scores[0] == safe_score
+    assert len(response) == 1
+
+    contents_detection_res = response[0]
+
+    assert isinstance(contents_detection_res, ContentsDetectionResponseObject)
+    assert contents_detection_res.start == 0
+    assert contents_detection_res.end == len(content)
+    assert contents_detection_res.text == content
+    assert contents_detection_res.score == safe_score
+    assert contents_detection_res.detection == "safe"
+    assert contents_detection_res.detection_type == "risk"
+    # assert contents_detection_res.metadata == {}
 
 
 #### Content detection tests
