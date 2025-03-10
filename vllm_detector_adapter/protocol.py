@@ -44,7 +44,9 @@ class ContentsDetectionResponseObject(BaseModel):
     metadata: Optional[Dict] = {}
 
     @staticmethod
-    def from_chat_completion_response(response, scores, detection_type, req_content: str):
+    def from_chat_completion_response(
+        response, scores, detection_type, req_content: str
+    ):
         """Function to convert openai chat completion response to [fms] contents detection
         response object
 
@@ -93,7 +95,6 @@ class ContentsDetectionResponseObject(BaseModel):
                 )
 
         return detection_responses
-
 
 
 class ContentsDetectionResponse(RootModel):

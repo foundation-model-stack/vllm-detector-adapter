@@ -66,7 +66,9 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 new_scores.append(scores[i])
 
         response.choices = new_choices
-        return ContentsDetectionResponseObject.from_chat_completion_response(response, new_scores, detection_type, req_content)
+        return ContentsDetectionResponseObject.from_chat_completion_response(
+            response, new_scores, detection_type, req_content
+        )
 
     async def content_analysis(
         self,
@@ -118,9 +120,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 return result
             else:
                 # Process results to split out safety categories into separate objects
-                processed_result.append(self.__post_process_result(*result, request.contents[result_idx]))
+                processed_result.append(
+                    self.__post_process_result(*result, request.contents[result_idx])
+                )
 
         return ContentsDetectionResponse(root=processed_result)
-        # return ContentsDetectionResponse.from_chat_completion_response(
-        #     processed_result, request.contents
-        # )
