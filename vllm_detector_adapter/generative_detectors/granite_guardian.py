@@ -220,10 +220,10 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type) = result
+            (chat_response, scores, detection_type, metadata_list) = result
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type
+            chat_response, scores, detection_type, metadata_list
         )
 
     async def generation_analyze(
@@ -260,8 +260,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type) = result
+            (chat_response, scores, detection_type, metadata_list) = result
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type
+            chat_response, scores, detection_type, metadata_list
         )

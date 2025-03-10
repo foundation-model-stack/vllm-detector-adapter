@@ -20,6 +20,7 @@ ROLE_OVERRIDE_PARAM_NAME = "role_override"
 
 
 class ContentsDetectionRequest(BaseModel):
+    # Contents list to run detections on
     contents: List[str] = Field(
         examples=[
             "Hi is this conversation guarded",
@@ -27,19 +28,27 @@ class ContentsDetectionRequest(BaseModel):
         ]
     )
     # Parameter passthrough
-    # NOTE: this endpoint does support the optional `role_override` parameter
-    # which allows use of different role when making a call to the guardrails LLM
-    # via chat/completions
+    # NOTE: this endpoint supports the optional `role_override` parameter,
+    # which allows use of a different role when making a call to the guardrails LLM
+    # via `/chat/completions`
     detector_params: Optional[Dict] = {}
 
 
 class ContentsDetectionResponseObject(BaseModel):
+    # Start index of the text corresponding to the detection
     start: int = Field(examples=[0])
+    # End index of the text corresponding to the detection
     end: int = Field(examples=[10])
+    # Text corresponding to the detection
     text: str = Field(examples=["text"])
+    # Detection label
     detection: str = Field(examples=["positive"])
+    # Detection type
     detection_type: str = Field(examples=["simple_example"])
+    # Score of detection
     score: float = Field(examples=[0.5])
+    # Optional metadata, containing more information on the detection
+    metadata: Optional[Dict] = {}
 
 
 class ContentsDetectionResponse(RootModel):
@@ -62,7 +71,7 @@ class ContentsDetectionResponse(RootModel):
         """
         contents_detection_responses = []
 
-        for content_idx, (response, scores, detection_type) in enumerate(results):
+        for content_idx, (response, scores, detection_type, metadata_list) in enumerate(results):
 
             detection_responses = []
             start = 0
@@ -81,6 +90,7 @@ class ContentsDetectionResponse(RootModel):
                         end=end,
                         text=contents[content_idx],
                         score=scores[i],
+                        metadata = metadata_list[i] if metadata_list else {}
                     ).model_dump()
                     detection_responses.append(response_object)
                 else:
@@ -106,7 +116,7 @@ class DetectionChatMessageParam(TypedDict):
     # The role of the message's author
     role: Required[str]
 
-    # The contents of the message
+    # Content of the message
     content: str
 
 
@@ -213,9 +223,14 @@ class GenerationDetectionRequest(BaseModel):
 
 
 class DetectionResponseObject(BaseModel):
+    # Detection label
     detection: str = Field(examples=["positive"])
+    # Detection type
     detection_type: str = Field(examples=["simple_example"])
+    # Score of detection
     score: float = Field(examples=[0.5])
+    # Optional metadata, containing more information on the detection
+    metadata: Optional[Dict] = {}
 
 
 class DetectionResponse(RootModel):
@@ -225,7 +240,7 @@ class DetectionResponse(RootModel):
 
     @staticmethod
     def from_chat_completion_response(
-        response: ChatCompletionResponse, scores: List[float], detection_type: str
+        response: ChatCompletionResponse, scores: List[float], detection_type: str, metadata_list: Optional[List[Dict]]
     ):
         """Function to convert openai chat completion response to [fms] chat detection response"""
         detection_responses = []
@@ -236,6 +251,7 @@ class DetectionResponse(RootModel):
                     detection_type=detection_type,
                     detection=content.strip(),
                     score=scores[i],
+                    metadata=metadata_list[i] if metadata_list else {}
                 ).model_dump()
                 detection_responses.append(response_object)
             else:

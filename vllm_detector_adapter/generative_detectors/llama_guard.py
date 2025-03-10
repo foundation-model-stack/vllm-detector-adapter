@@ -29,18 +29,20 @@ class LlamaGuard(ChatCompletionDetectionBase):
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "categories"
 
-    def __post_process_result(self, response, scores, detection_type):
+    def __post_process_result(self, response, scores, detection_type, metadata_list):
         """Function to process chat completion results for content type detection.
 
         Args:
             response: ChatCompletionResponse,
             scores: List[float],
             detection_type: str,
+            metadata_list: Optional[List[Dict]]
         Returns:
             Tuple(
                 response: ChatCompletionResponse,
                 scores: List[float],
-                detection_type,
+                detection_type: str,
+                metadata_list: Optional[List[Dict]]
             )
         """
         # NOTE: Llama-guard returns specific safety categories in the last line and in a csv format
@@ -68,7 +70,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 new_scores.append(scores[i])
 
         response.choices = new_choices
-        return (response, new_scores, detection_type)
+        return (response, new_scores, detection_type, metadata_list)
 
     async def content_analysis(
         self,

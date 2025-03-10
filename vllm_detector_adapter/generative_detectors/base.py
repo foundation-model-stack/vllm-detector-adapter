@@ -1,7 +1,7 @@
 # Standard
 from http import HTTPStatus
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import asyncio
 import codecs
 import math
@@ -169,6 +169,12 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     ##### General chat completion output processing functions ##################
 
+    def process_metadata_list(self, response: ChatCompletionResponse) -> Optional[List[Dict]]:
+        """Process chat completion for metadata. Metadata if returned is
+        expected to correspond to one Dict per choice in the chat completion response
+        """
+        return None
+
     def calculate_scores(self, response: ChatCompletionResponse) -> List[float]:
         """Extract scores from logprobs of the raw chat response"""
         safe_token_prob = START_PROB
@@ -256,7 +262,10 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         # Calculate scores
         scores = self.calculate_scores(chat_response)
 
-        return chat_response, scores, self.DETECTION_TYPE
+        # Get metadata list on response
+        metadata_list = self.process_metadata_list(chat_response)
+
+        return chat_response, scores, self.DETECTION_TYPE, metadata_list
 
     ##### Detection methods ####################################################
     # Base implementation of other detection endpoints like content can go here
@@ -295,10 +304,10 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type) = result
+            (chat_response, scores, detection_type, metadata_list) = result
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type
+            chat_response, scores, detection_type, metadata_list
         )
 
     async def context_analyze(
@@ -403,8 +412,8 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type) = result
+            (chat_response, scores, detection_type, metadata_list) = result
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type
+            chat_response, scores, detection_type, metadata_list
         )
