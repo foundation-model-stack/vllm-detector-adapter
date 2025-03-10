@@ -30,6 +30,20 @@ class LlamaGuard(ChatCompletionDetectionBase):
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "categories"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Process risk_bank_objs
+        if self.risk_bank_objs:
+            self.risk_bank = {
+                risk.key.value: risk.value.value for risk in self.risk_bank_objs
+            }
+        else:
+            logger.warning(
+                f"{self.__class__.__name__} is missing the RISK_BANK_VAR_NAME variable"
+            )
+            self.risk_bank = {}
+
     def __post_process_result(self, response, scores, detection_type, req_content):
         """Function to process chat completion results for content type detection.
 
@@ -50,16 +64,25 @@ class LlamaGuard(ChatCompletionDetectionBase):
 
         new_choices = []
         new_scores = []
+        metadata = {}
 
         # NOTE: we are flattening out choices here as different categories
         for i, choice in enumerate(response.choices):
             content = choice.message.content
             if self.UNSAFE_TOKEN in content:
-                # Reason for reassigning the content:
-                # We want to remove the safety category from the content
                 choice.message.content = self.UNSAFE_TOKEN
                 new_choices.append(choice)
                 new_scores.append(scores[i])
+                # Process categories
+                metadata[self.RISK_BANK_VAR_NAME] = []
+                for category in content.splitlines()[-1].split(","):
+                    if category in self.risk_bank:
+                        category_name = self.risk_bank.get(category)
+                        metadata[self.RISK_BANK_VAR_NAME].append(category_name)
+                    else:
+                        logger.warning(
+                            f"Category {category} not found in risk bank for model {self.__class__.__name__}"
+                        )
             else:
                 # "safe" case
                 new_choices.append(choice)
@@ -67,7 +90,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
 
         response.choices = new_choices
         return ContentsDetectionResponseObject.from_chat_completion_response(
-            response, new_scores, detection_type, req_content
+            response, new_scores, detection_type, req_content, metadata
         )
 
     async def content_analysis(

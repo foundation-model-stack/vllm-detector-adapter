@@ -45,7 +45,7 @@ class ContentsDetectionResponseObject(BaseModel):
 
     @staticmethod
     def from_chat_completion_response(
-        response, scores, detection_type, req_content: str
+        response, scores, detection_type, req_content: str, metadata=None
     ):
         """Function to convert openai chat completion response to [fms] contents detection
         response object
@@ -59,6 +59,8 @@ class ContentsDetectionResponseObject(BaseModel):
                 Type of the detection
             req_content: str
                Input content in the request
+            metadata: Optional Dict
+                Dict containing metadata response provided by the model
         Returns:
             List[ContentsDetectionResponseObject]
         """
@@ -80,7 +82,7 @@ class ContentsDetectionResponseObject(BaseModel):
                     end=end,
                     text=req_content,
                     score=scores[i],
-                )
+                ).model_dump()
                 detection_responses.append(response_object)
             else:
                 # This case should be unlikely but we handle it since a detection
@@ -101,6 +103,28 @@ class ContentsDetectionResponse(RootModel):
     # The root attribute is used here so that the response will appear
     # as a list instead of a list nested under a key
     root: List[List[ContentsDetectionResponseObject]]
+
+    @staticmethod
+    def from_chat_completion_response(results, contents: List[str], *args, **kwargs):
+        contents_detection_responses = []
+
+        for content_idx, (response, scores, detection_type) in enumerate(results):
+            detection_responses = (
+                ContentsDetectionResponseObject.from_chat_completion_response(
+                    response,
+                    scores,
+                    detection_type,
+                    contents[content_idx],
+                    *args,
+                    **kwargs,
+                )
+            )
+            if isinstance(detection_responses, ErrorResponse):
+                return detection_responses
+
+            contents_detection_responses.append(detection_responses)
+
+        return ContentsDetectionResponse(root=contents_detection_responses)
 
 
 ##### Chat Detection types for the /text/chat detection endpoint ###############

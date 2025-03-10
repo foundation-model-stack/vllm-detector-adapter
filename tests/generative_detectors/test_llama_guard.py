@@ -27,7 +27,6 @@ from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContentsDetectionRequest,
     ContentsDetectionResponse,
-    ContentsDetectionResponseObject,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
@@ -189,13 +188,13 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
 
     contents_detection_res = response[0]
 
-    assert isinstance(contents_detection_res, ContentsDetectionResponseObject)
-    assert contents_detection_res.start == 0
-    assert contents_detection_res.end == len(content)
-    assert contents_detection_res.text == content
-    assert contents_detection_res.score == unsafe_score
-    assert contents_detection_res.detection == "unsafe"
-    assert contents_detection_res.detection_type == "risk"
+    assert isinstance(contents_detection_res, dict)
+    assert contents_detection_res["start"] == 0
+    assert contents_detection_res["end"] == len(content)
+    assert contents_detection_res["text"] == content
+    assert contents_detection_res["score"] == unsafe_score
+    assert contents_detection_res["detection"] == "unsafe"
+    assert contents_detection_res["detection_type"] == "risk"
     # assert contents_detection_res.metadata == {}
 
 
@@ -226,13 +225,13 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
 
     contents_detection_res = response[0]
 
-    assert isinstance(contents_detection_res, ContentsDetectionResponseObject)
-    assert contents_detection_res.start == 0
-    assert contents_detection_res.end == len(content)
-    assert contents_detection_res.text == content
-    assert contents_detection_res.score == safe_score
-    assert contents_detection_res.detection == "safe"
-    assert contents_detection_res.detection_type == "risk"
+    assert isinstance(contents_detection_res, dict)
+    assert contents_detection_res["start"] == 0
+    assert contents_detection_res["end"] == len(content)
+    assert contents_detection_res["text"] == content
+    assert contents_detection_res["score"] == safe_score
+    assert contents_detection_res["detection"] == "safe"
+    assert contents_detection_res["detection_type"] == "risk"
     # assert contents_detection_res.metadata == {}
 
 
