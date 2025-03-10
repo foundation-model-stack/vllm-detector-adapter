@@ -171,11 +171,11 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     def process_metadata_list(
         self, response: ChatCompletionResponse
-    ) -> Optional[List[Dict]]:
+    ) -> Tuple[ChatCompletionResponse, Optional[List[Dict]]]:
         """Process chat completion for metadata. Metadata if returned is
         expected to correspond to one Dict per choice in the chat completion response
         """
-        return None
+        return response, None
 
     def calculate_scores(self, response: ChatCompletionResponse) -> List[float]:
         """Extract scores from logprobs of the raw chat response"""
@@ -264,8 +264,8 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         # Calculate scores
         scores = self.calculate_scores(chat_response)
 
-        # Get metadata list on response
-        metadata_list = self.process_metadata_list(chat_response)
+        # Get metadata list on response with processed chat response, if applicable
+        chat_response, metadata_list = self.process_metadata_list(chat_response)
 
         return chat_response, scores, self.DETECTION_TYPE, metadata_list
 

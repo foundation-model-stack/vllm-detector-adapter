@@ -1,6 +1,7 @@
 # Standard
 from http import HTTPStatus
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
+import copy
 import re
 
 # Third Party
@@ -195,12 +196,12 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     def process_metadata_list(
         self, response: ChatCompletionResponse
-    ) -> Optional[List[Dict]]:
+    ) -> Tuple[ChatCompletionResponse, Optional[List[Dict]]]:
         """Process Granite Guardian chat completion tags for metadata. Metadata corresponds to
         one Dict per choice in the chat completion response
         """
         metadata_list = []
-        for choice in response.choices:
+        for i, choice in enumerate(response.choices):
             content = choice.message.content
             metadata = (
                 {}
@@ -212,10 +213,14 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 # Some (older) Granite Guardian versions may not contain extra information
                 # for metadata. Make sure this does not break anything
                 if metadata_search := re.search(regex_str, content):
+                    # Update choice content as necessary, removing the metadata portion
+                    response.choices[i].message.content = re.sub(
+                        regex_str, "", content
+                    ).strip()
                     metadata_content = metadata_search.group(1).strip()
                     metadata = {self.METADATA_ATTRIBUTE: metadata_content}
             metadata_list.append(metadata)
-        return metadata_list
+        return response, metadata_list
 
     ##### Overriding model-class specific endpoint functionality ##################
 
