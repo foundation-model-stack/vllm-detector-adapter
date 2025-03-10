@@ -169,7 +169,9 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     ##### General chat completion output processing functions ##################
 
-    def process_metadata_list(self, response: ChatCompletionResponse) -> Optional[List[Dict]]:
+    def process_metadata_list(
+        self, response: ChatCompletionResponse
+    ) -> Optional[List[Dict]]:
         """Process chat completion for metadata. Metadata if returned is
         expected to correspond to one Dict per choice in the chat completion response
         """

@@ -71,7 +71,9 @@ class ContentsDetectionResponse(RootModel):
         """
         contents_detection_responses = []
 
-        for content_idx, (response, scores, detection_type, metadata_list) in enumerate(results):
+        for content_idx, (response, scores, detection_type, metadata_list) in enumerate(
+            results
+        ):
 
             detection_responses = []
             start = 0
@@ -90,7 +92,7 @@ class ContentsDetectionResponse(RootModel):
                         end=end,
                         text=contents[content_idx],
                         score=scores[i],
-                        metadata = metadata_list[i] if metadata_list else {}
+                        metadata=metadata_list[i] if metadata_list else {},
                     ).model_dump()
                     detection_responses.append(response_object)
                 else:
@@ -240,7 +242,10 @@ class DetectionResponse(RootModel):
 
     @staticmethod
     def from_chat_completion_response(
-        response: ChatCompletionResponse, scores: List[float], detection_type: str, metadata_list: Optional[List[Dict]]
+        response: ChatCompletionResponse,
+        scores: List[float],
+        detection_type: str,
+        metadata_list: Optional[List[Dict]],
     ):
         """Function to convert openai chat completion response to [fms] chat detection response"""
         detection_responses = []
@@ -251,7 +256,7 @@ class DetectionResponse(RootModel):
                     detection_type=detection_type,
                     detection=content.strip(),
                     score=scores[i],
-                    metadata=metadata_list[i] if metadata_list else {}
+                    metadata=metadata_list[i] if metadata_list else {},
                 ).model_dump()
                 detection_responses.append(response_object)
             else:
