@@ -82,6 +82,7 @@ class ContentsDetectionResponseObject(BaseModel):
                     end=end,
                     text=req_content,
                     score=scores[i],
+                    metadata=metadata,
                 ).model_dump()
                 detection_responses.append(response_object)
             else:
