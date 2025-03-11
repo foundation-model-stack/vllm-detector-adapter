@@ -41,7 +41,7 @@ class ContentsDetectionResponseObject(BaseModel):
     detection_type: str = Field(examples=["simple_example"])
     score: float = Field(examples=[0.5])
     # Metadata for additional model information provided by the model
-    metadata: Optional[Dict] = {}
+    metadata: Optional[Dict] = None
 
     @staticmethod
     def from_chat_completion_response(

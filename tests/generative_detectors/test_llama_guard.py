@@ -27,6 +27,7 @@ from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContentsDetectionRequest,
     ContentsDetectionResponse,
+    ContentsDetectionResponseObject,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
@@ -183,22 +184,21 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     unsafe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
-    response = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        response, [unsafe_score], "risk", content
+    (
+        new_response,
+        scores,
+        detection_type,
+        metadata,
+    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
+        response, [unsafe_score], "risk"
     )
 
-    assert len(response) == 1
-
-    contents_detection_res = response[0]
-
-    assert isinstance(contents_detection_res, dict)
-    assert contents_detection_res["start"] == 0
-    assert contents_detection_res["end"] == len(content)
-    assert contents_detection_res["text"] == content
-    assert contents_detection_res["score"] == unsafe_score
-    assert contents_detection_res["detection"] == "unsafe"
-    assert contents_detection_res["detection_type"] == "risk"
-    assert contents_detection_res["metadata"] == expected_metadata
+    assert isinstance(new_response, ChatCompletionResponse)
+    assert new_response.choices[0].message.content == "unsafe"
+    assert scores[0] == unsafe_score
+    assert len(new_response.choices) == 1
+    assert detection_type == "risk"
+    assert metadata == expected_metadata
 
 
 def test_post_process_content_works_for_safe(llama_guard_detection):
@@ -220,22 +220,21 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     safe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
-    response = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        response, [safe_score], "risk", content
+    (
+        new_response,
+        scores,
+        detection_type,
+        metadata,
+    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
+        response, [safe_score], "risk"
     )
 
-    assert len(response) == 1
-
-    contents_detection_res = response[0]
-
-    assert isinstance(contents_detection_res, dict)
-    assert contents_detection_res["start"] == 0
-    assert contents_detection_res["end"] == len(content)
-    assert contents_detection_res["text"] == content
-    assert contents_detection_res["score"] == safe_score
-    assert contents_detection_res["detection"] == "safe"
-    assert contents_detection_res["detection_type"] == "risk"
-    assert contents_detection_res["metadata"] == {}
+    assert isinstance(new_response, ChatCompletionResponse)
+    assert new_response.choices[0].message.content == "safe"
+    assert scores[0] == safe_score
+    assert len(new_response.choices) == 1
+    assert detection_type == "risk"
+    assert metadata == {}
 
 
 #### Content detection tests

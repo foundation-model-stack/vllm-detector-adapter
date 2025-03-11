@@ -44,16 +44,18 @@ class LlamaGuard(ChatCompletionDetectionBase):
             )
             self.risk_bank = {}
 
-    def __post_process_result(self, response, scores, detection_type, req_content):
+    def __post_process_result(self, response, scores, detection_type):
         """Function to process chat completion results for content type detection.
 
         Args:
             response: ChatCompletionResponse,
             scores: List[float],
-            detection_type: str,
-            req_content: str
+            detection_type: str
         Returns:
-            ContentsDetectionResponseObject
+            response: ChatCompletionResponse
+            scores: List[float]
+            detection_type: str
+            metadata: dict
         """
         # NOTE: Llama-guard returns specific safety categories in the last line and in a csv format
         # this is guided by the prompt definition of the model, so we expect llama_guard to adhere to it
@@ -89,9 +91,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 new_scores.append(scores[i])
 
         response.choices = new_choices
-        return ContentsDetectionResponseObject.from_chat_completion_response(
-            response, new_scores, detection_type, req_content, metadata
-        )
+        return response, new_scores, detection_type, metadata
 
     async def content_analysis(
         self,
@@ -143,8 +143,20 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 return result
             else:
                 # Process results to split out safety categories into separate objects
+                (
+                    response,
+                    new_scores,
+                    detection_type,
+                    metadata,
+                ) = self.__post_process_result(*result)
                 processed_result.append(
-                    self.__post_process_result(*result, request.contents[result_idx])
+                    ContentsDetectionResponseObject.from_chat_completion_response(
+                        response,
+                        new_scores,
+                        detection_type,
+                        request.contents[result_idx],
+                        metadata=metadata,
+                    )
                 )
 
         return ContentsDetectionResponse(root=processed_result)
