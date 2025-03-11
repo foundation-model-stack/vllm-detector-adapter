@@ -44,7 +44,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
             )
             self.risk_bank = {}
 
-    def __post_process_result(self, response, scores, detection_type):
+    def post_process_completion_results(self, response, scores, detection_type):
         """Function to process chat completion results for content type detection.
 
         Args:
@@ -148,7 +148,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                     new_scores,
                     detection_type,
                     metadata,
-                ) = self.__post_process_result(*result)
+                ) = self.post_process_completion_results(*result)
                 processed_result.append(
                     ContentsDetectionResponseObject.from_chat_completion_response(
                         response,

@@ -258,6 +258,14 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         return chat_response, scores, self.DETECTION_TYPE
 
+    def post_process_completion_results(self, response, scores, detection_type):
+        """Function to process the results of chat completion and to divide it
+        into logical blocks that can be converted into different detection result
+        objects
+        """
+        metadata = None
+        return response, scores, detection_type, metadata
+
     ##### Detection methods ####################################################
     # Base implementation of other detection endpoints like content can go here
 

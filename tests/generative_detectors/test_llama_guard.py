@@ -189,7 +189,7 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
         scores,
         detection_type,
         metadata,
-    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
+    ) = llama_guard_detection_instance.post_process_completion_results(
         response, [unsafe_score], "risk"
     )
 
@@ -225,7 +225,7 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
         scores,
         detection_type,
         metadata,
-    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
+    ) = llama_guard_detection_instance.post_process_completion_results(
         response, [safe_score], "risk"
     )
 
