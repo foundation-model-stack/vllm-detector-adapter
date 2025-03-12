@@ -33,18 +33,32 @@ class LlamaGuard(ChatCompletionDetectionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Process risk_bank_objs
-        if self.risk_bank_objs:
-            self.risk_bank = {
-                risk.key.value: risk.value.value for risk in self.risk_bank_objs
-            }
-        else:
-            logger.warning(
-                f"{self.__class__.__name__} is missing the RISK_BANK_VAR_NAME variable"
-            )
-            self.risk_bank = {}
+        # Initialize risk_bank
+        self.risk_bank = None
 
-    def post_process_completion_results(self, response, scores, detection_type):
+    async def __get_risk_bank(self):
+        # Process risk_bank_objs
+
+        if not self.risk_bank:
+            logger.info("Risk bank not found in cache. Generating now.")
+            risk_bank_objs = await self._get_predefined_risk_bank()
+
+            if risk_bank_objs:
+                risk_bank = {
+                    risk.key.value: risk.value.value for risk in risk_bank_objs
+                }
+            else:
+                logger.warning(
+                    f"{self.__class__.__name__} is missing the RISK_BANK_VAR_NAME variable"
+                )
+                risk_bank = {}
+
+            # Store this risk bank with the class for quick future use
+            self.risk_bank = risk_bank
+
+        return self.risk_bank
+
+    async def post_process_completion_results(self, response, scores, detection_type):
         """Function to process chat completion results for content type detection.
 
         Args:
@@ -68,6 +82,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
         new_scores = []
         metadata = {}
 
+        risk_bank = await self.__get_risk_bank()
+
         # NOTE: we are flattening out choices here as different categories
         for i, choice in enumerate(response.choices):
             content = choice.message.content
@@ -78,8 +94,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 # Process categories
                 metadata[self.RISK_BANK_VAR_NAME] = []
                 for category in content.splitlines()[-1].split(","):
-                    if category in self.risk_bank:
-                        category_name = self.risk_bank.get(category)
+                    if category in risk_bank:
+                        category_name = risk_bank.get(category)
                         metadata[self.RISK_BANK_VAR_NAME].append(category_name)
                     else:
                         logger.warning(
@@ -148,8 +164,9 @@ class LlamaGuard(ChatCompletionDetectionBase):
                     new_scores,
                     detection_type,
                     metadata,
-                ) = self.post_process_completion_results(*result)
-                processed_result.append(
+                ) = await self.post_process_completion_results(*result)
+
+                new_result = (
                     ContentsDetectionResponseObject.from_chat_completion_response(
                         response,
                         new_scores,
@@ -158,5 +175,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                         metadata=metadata,
                     )
                 )
+
+                processed_result.append(new_result)
 
         return ContentsDetectionResponse(root=processed_result)

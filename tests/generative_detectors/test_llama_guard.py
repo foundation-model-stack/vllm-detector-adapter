@@ -42,6 +42,7 @@ BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 @dataclass
 class MockTokenizer:
     type: Optional[str] = None
+    chat_template: str = CHAT_TEMPLATE
 
 
 @dataclass
@@ -72,6 +73,9 @@ class MockModelConfig:
 class MockEngine:
     async def get_model_config(self):
         return MockModelConfig()
+
+    async def get_tokenizer(self):
+        return MockTokenizer()
 
 
 async def _llama_guard_init():
@@ -184,13 +188,10 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     unsafe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
-    (
-        new_response,
-        scores,
-        detection_type,
-        metadata,
-    ) = llama_guard_detection_instance.post_process_completion_results(
-        response, [unsafe_score], "risk"
+    (new_response, scores, detection_type, metadata,) = asyncio.run(
+        llama_guard_detection_instance.post_process_completion_results(
+            response, [unsafe_score], "risk"
+        )
     )
 
     assert isinstance(new_response, ChatCompletionResponse)
@@ -220,13 +221,10 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     safe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
-    (
-        new_response,
-        scores,
-        detection_type,
-        metadata,
-    ) = llama_guard_detection_instance.post_process_completion_results(
-        response, [safe_score], "risk"
+    (new_response, scores, detection_type, metadata,) = asyncio.run(
+        llama_guard_detection_instance.post_process_completion_results(
+            response, [safe_score], "risk"
+        )
     )
 
     assert isinstance(new_response, ChatCompletionResponse)
@@ -354,6 +352,8 @@ def test_generation_analyze(llama_guard_detection, llama_guard_completion_respon
 def test_risk_bank_extraction(llama_guard_detection):
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
 
-    risk_bank_objs = llama_guard_detection_instance.risk_bank_objs
+    risk_bank_objs = asyncio.run(
+        llama_guard_detection_instance._get_predefined_risk_bank()
+    )
     assert len(risk_bank_objs) == 4
     assert risk_bank_objs[0].key.value == "S1"

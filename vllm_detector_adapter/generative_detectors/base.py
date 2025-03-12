@@ -42,7 +42,13 @@ DEFAULT_ROLE_FOR_CONTENTS_DETECTION = "user"
 class ChatCompletionDetectionBase(OpenAIServingChat):
     """Base class for developing chat completion based detectors"""
 
-    def __init__(self, task_template: str, output_template: str, *args, **kwargs):
+    def __init__(
+        self,
+        task_template: str,
+        output_template: str,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
 
         self.jinja_env = jinja2.Environment()
@@ -50,12 +56,9 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         self.output_template = self.load_template(output_template)
 
-        if hasattr(self, "RISK_BANK_VAR_NAME"):
-            self.risk_bank_objs = self._get_predefined_risk_bank()
-
     ##### Template functions ###################################################
 
-    def _get_predefined_risk_bank(self) -> List[jinja2.nodes.Pair]:
+    async def _get_predefined_risk_bank(self) -> List[jinja2.nodes.Pair]:
         """Get the list of risks defined in the chat template"""
 
         if not hasattr(self, "RISK_BANK_VAR_NAME"):
@@ -63,7 +66,9 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
                 f"RISK_BANK_VAR_NAME is not defined for {self.__class__.__name__} type of models"
             )
 
-        ast = self.jinja_env.parse(self.chat_template)
+        # NOTE: we need to get tokenizer separately to support LoRA adapters
+        tokenizer = await self.engine_client.get_tokenizer()
+        ast = self.jinja_env.parse(tokenizer.chat_template)
         risk_bank_objs = []
 
         # Note: jinja2.nodes.Assign is type of node
@@ -258,7 +263,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         return chat_response, scores, self.DETECTION_TYPE
 
-    def post_process_completion_results(self, response, scores, detection_type):
+    async def post_process_completion_results(self, response, scores, detection_type):
         """Function to process the results of chat completion and to divide it
         into logical blocks that can be converted into different detection result
         objects

@@ -42,6 +42,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "risk_bank"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     ##### Private / Internal functions ###################################################
 
     def __preprocess(
