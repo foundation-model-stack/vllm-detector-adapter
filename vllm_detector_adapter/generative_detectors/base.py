@@ -274,7 +274,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     async def post_process_completion_results(
         self, response: ChatCompletionResponse, scores: List[float], detection_type: str
-    ) -> Tuple[ChatCompletionResponse, List[float], str, str]:
+    ) -> Tuple[ChatCompletionResponse, List[float], str, Optional[List[Dict]]:
         """Function to process the results of chat completion and to divide it
         into logical blocks that can be converted into different detection result
         objects
@@ -291,7 +291,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             response: ChatCompletionResponse
             scores: List[float]
             detection_type: str
-            metadata: List[dict] or None
+            metadata_list: List[dict] or None
         """
         metadata_list = None
         return response, scores, detection_type, metadata_list
