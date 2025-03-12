@@ -26,6 +26,7 @@ from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContentsDetectionRequest,
     ContentsDetectionResponse,
+    ContentsDetectionResponseObject,
     ContextAnalysisRequest,
     DetectionResponse,
     GenerationDetectionRequest,
@@ -316,10 +317,18 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type) = result
+            (
+                chat_response,
+                scores,
+                detection_type,
+                metadata,
+            ) = await self.post_process_completion_results(*result)
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type
+            chat_response,
+            scores,
+            detection_type,
+            metadata_per_choice=metadata,
         )
 
     async def context_analyze(
@@ -378,15 +387,33 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         # If there is any error, return that otherwise, return the whole response
         # properly formatted.
-        for result in results:
+        processed_result = []
+        for result_idx, result in enumerate(results):
             # NOTE: we are only sending 1 of the error results
             # and not every or not cumulative
             if isinstance(result, ErrorResponse):
                 return result
+            else:
+                (
+                    response,
+                    new_scores,
+                    detection_type,
+                    metadata,
+                ) = await self.post_process_completion_results(*result)
 
-        return ContentsDetectionResponse.from_chat_completion_response(
-            results, request.contents
-        )
+                new_result = (
+                    ContentsDetectionResponseObject.from_chat_completion_response(
+                        response,
+                        new_scores,
+                        detection_type,
+                        request.contents[result_idx],
+                        metadata_per_choice=metadata,
+                    )
+                )
+
+                processed_result.append(new_result)
+
+        return ContentsDetectionResponse(root=processed_result)
 
     async def generation_analyze(
         self,
@@ -424,8 +451,16 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type) = result
+            (
+                chat_response,
+                scores,
+                detection_type,
+                metadata,
+            ) = await self.post_process_completion_results(*result)
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type
+            chat_response,
+            scores,
+            detection_type,
+            metadata_per_choice=metadata,
         )

@@ -80,13 +80,14 @@ class LlamaGuard(ChatCompletionDetectionBase):
 
         new_choices = []
         new_scores = []
-        metadata = {}
+        metadata_per_choice = []
 
         risk_bank = await self.__get_risk_bank()
 
         # NOTE: we are flattening out choices here as different categories
         for i, choice in enumerate(response.choices):
             content = choice.message.content
+            metadata = {}
             if self.UNSAFE_TOKEN in content:
                 choice.message.content = self.UNSAFE_TOKEN
                 new_choices.append(choice)
@@ -101,13 +102,14 @@ class LlamaGuard(ChatCompletionDetectionBase):
                         logger.warning(
                             f"Category {category} not found in risk bank for model {self.__class__.__name__}"
                         )
+                metadata_per_choice.append(metadata)
             else:
                 # "safe" case
                 new_choices.append(choice)
                 new_scores.append(scores[i])
 
         response.choices = new_choices
-        return response, new_scores, detection_type, metadata
+        return response, new_scores, detection_type, metadata_per_choice
 
     async def content_analysis(
         self,
@@ -163,7 +165,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                     response,
                     new_scores,
                     detection_type,
-                    metadata,
+                    metadata_per_choice,
                 ) = await self.post_process_completion_results(*result)
 
                 new_result = (
@@ -172,7 +174,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
                         new_scores,
                         detection_type,
                         request.contents[result_idx],
-                        metadata=metadata,
+                        metadata_per_choice=metadata_per_choice,
                     )
                 )
 

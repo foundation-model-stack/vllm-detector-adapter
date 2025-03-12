@@ -41,11 +41,11 @@ class ContentsDetectionResponseObject(BaseModel):
     detection_type: str = Field(examples=["simple_example"])
     score: float = Field(examples=[0.5])
     # Metadata for additional model information provided by the model
-    metadata: Optional[Dict] = None
+    metadata: Optional[Dict] = {}
 
     @staticmethod
     def from_chat_completion_response(
-        response, scores, detection_type, req_content: str, metadata=None
+        response, scores, detection_type, req_content: str, metadata_per_choice=None
     ):
         """Function to convert openai chat completion response to [fms] contents detection
         response object
@@ -59,8 +59,8 @@ class ContentsDetectionResponseObject(BaseModel):
                 Type of the detection
             req_content: str
                Input content in the request
-            metadata: Optional Dict
-                Dict containing metadata response provided by the model
+            metadata_per_choice: Optional List[Dict]
+                List of dict containing metadata response provided by the model
         Returns:
             List[ContentsDetectionResponseObject]
         """
@@ -82,7 +82,7 @@ class ContentsDetectionResponseObject(BaseModel):
                     end=end,
                     text=req_content,
                     score=scores[i],
-                    metadata=metadata,
+                    metadata=metadata_per_choice[i] if metadata_per_choice else {},
                 ).model_dump()
                 detection_responses.append(response_object)
             else:
@@ -245,6 +245,8 @@ class DetectionResponseObject(BaseModel):
     detection: str = Field(examples=["positive"])
     detection_type: str = Field(examples=["simple_example"])
     score: float = Field(examples=[0.5])
+    # Metadata for additional model information provided by the model
+    metadata: Optional[Dict] = {}
 
 
 class DetectionResponse(RootModel):
@@ -254,7 +256,10 @@ class DetectionResponse(RootModel):
 
     @staticmethod
     def from_chat_completion_response(
-        response: ChatCompletionResponse, scores: List[float], detection_type: str
+        response: ChatCompletionResponse,
+        scores: List[float],
+        detection_type: str,
+        metadata_per_choice=None,
     ):
         """Function to convert openai chat completion response to [fms] chat detection response"""
         detection_responses = []
@@ -265,6 +270,7 @@ class DetectionResponse(RootModel):
                     detection_type=detection_type,
                     detection=content.strip(),
                     score=scores[i],
+                    metadata=metadata_per_choice[i] if metadata_per_choice else {},
                 ).model_dump()
                 detection_responses.append(response_object)
             else:

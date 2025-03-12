@@ -182,7 +182,7 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
         ],
     )
 
-    expected_metadata = {"categories": ["Non-Violent Crimes.", "Sex Crimes."]}
+    expected_metadata = [{"categories": ["Non-Violent Crimes.", "Sex Crimes."]}]
 
     unsafe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
@@ -198,6 +198,7 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
     assert scores[0] == unsafe_score
     assert len(new_response.choices) == 1
     assert detection_type == "risk"
+    # post_process_completion_results function returns array of metadata per choice
     assert metadata == expected_metadata
 
 
@@ -231,7 +232,8 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     assert scores[0] == safe_score
     assert len(new_response.choices) == 1
     assert detection_type == "risk"
-    assert metadata == {}
+    # post_process_completion_results function returns array of metadata per choice
+    assert metadata == []
 
 
 #### Content detection tests
