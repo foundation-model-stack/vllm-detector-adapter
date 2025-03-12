@@ -35,6 +35,7 @@ BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 @dataclass
 class MockTokenizer:
     type: Optional[str] = None
+    chat_template: str = CHAT_TEMPLATE
 
 
 @dataclass
@@ -65,6 +66,9 @@ class MockModelConfig:
 class MockEngine:
     async def get_model_config(self):
         return MockModelConfig()
+
+    async def get_tokenizer(self):
+        return MockTokenizer()
 
 
 async def _async_serving_detection_completion_init():
@@ -186,23 +190,18 @@ def test_content_analysis_success(detection_base, completion_response):
         assert detections[0][0]["score"] == 0.9
         assert detections[0][0]["start"] == 0
         assert detections[0][0]["end"] == len(content_request.contents[0])
+        assert detections[0][0]["metadata"] == {}
+
         # 2nd choice as 2nd label
         assert detections[0][1]["detection"] == "yes"
         assert detections[0][1]["score"] == 0.1
         assert detections[0][1]["start"] == 0
         assert detections[0][1]["end"] == len(content_request.contents[0])
+        assert detections[0][1]["metadata"] == {}
         # For 2nd content, we are only testing 1st detection for simplicity
         # Note: detection is same, because of how mock is working.
         assert detections[1][0]["detection"] == "no"
         assert detections[1][0]["score"] == 0.9
         assert detections[1][0]["start"] == 0
         assert detections[1][0]["end"] == len(content_request.contents[1])
-
-
-def test_risk_bank_absence_errors(detection_base):
-    """Test that absence of risk bank raises a ValueError when trying to get the risk bank objects
-    by calling the _get_predefined_risk_bank method"""
-    base_instance = asyncio.run(detection_base)
-    delattr(base_instance, "RISK_BANK_VAR_NAME")
-    with pytest.raises(ValueError) as e:
-        base_instance._get_predefined_risk_bank()
+        assert detections[1][0]["metadata"] == {}

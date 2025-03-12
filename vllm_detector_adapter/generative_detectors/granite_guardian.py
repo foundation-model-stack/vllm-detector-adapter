@@ -42,6 +42,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "risk_bank"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     ##### Private / Internal functions ###################################################
 
     def __preprocess(
@@ -220,10 +223,18 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type) = result
+            (
+                chat_response,
+                scores,
+                detection_type,
+                metadata,
+            ) = await self.post_process_completion_results(*result)
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type
+            chat_response,
+            scores,
+            detection_type,
+            metadata_per_choice=metadata,
         )
 
     async def generation_analyze(
@@ -260,8 +271,16 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type) = result
+            (
+                chat_response,
+                scores,
+                detection_type,
+                metadata,
+            ) = await self.post_process_completion_results(*result)
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type
+            chat_response,
+            scores,
+            detection_type,
+            metadata_per_choice=metadata,
         )
