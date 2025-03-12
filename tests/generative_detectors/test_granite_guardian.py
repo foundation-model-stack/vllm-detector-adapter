@@ -434,7 +434,7 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
 #### Helper function post process tests
 
 
-def test_process_metadata_list_no_metadata(
+def test_post_process_completion_no_metadata(
     granite_guardian_detection, granite_guardian_completion_response
 ):
     # Older Granite Guardian versions do not provide info like confidence
@@ -454,7 +454,7 @@ def test_process_metadata_list_no_metadata(
     chat_completion_response.choices[1].message.content == "Yes"
 
 
-def test_process_metadata_list_with_confidence(
+def test_post_process_completion_with_confidence(
     granite_guardian_detection, granite_guardian_completion_response_extra_content
 ):
     # Starting Granite Guardian 3.2, info like confidence is provided
