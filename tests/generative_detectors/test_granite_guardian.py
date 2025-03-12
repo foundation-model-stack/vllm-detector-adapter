@@ -45,6 +45,7 @@ CONTEXT_DOC = "Geese can be found in lakes, ponds, and rivers"
 @dataclass
 class MockTokenizer:
     type: Optional[str] = None
+    chat_template: str = CHAT_TEMPLATE
 
 
 @dataclass
@@ -75,6 +76,9 @@ class MockModelConfig:
 class MockEngine:
     async def get_model_config(self):
         return MockModelConfig()
+
+    async def get_tokenizer(self):
+        return MockTokenizer()
 
 
 async def _granite_guardian_init():
@@ -786,6 +790,8 @@ def test_chat_detection_errors_on_undefined_jinja_error(granite_guardian_detecti
 def test_risk_bank_extraction(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
 
-    risk_bank_objs = granite_guardian_detection_instance.risk_bank_objs
+    risk_bank_objs = asyncio.run(
+        granite_guardian_detection_instance._get_predefined_risk_bank()
+    )
     assert len(risk_bank_objs) == 3
     assert risk_bank_objs[0].key.value == "social_bias"

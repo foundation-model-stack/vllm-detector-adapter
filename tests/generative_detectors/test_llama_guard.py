@@ -41,6 +41,7 @@ BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 @dataclass
 class MockTokenizer:
     type: Optional[str] = None
+    chat_template: str = CHAT_TEMPLATE
 
 
 @dataclass
@@ -71,6 +72,9 @@ class MockModelConfig:
 class MockEngine:
     async def get_model_config(self):
         return MockModelConfig()
+
+    async def get_tokenizer(self):
+        return MockTokenizer()
 
 
 async def _llama_guard_init():
@@ -162,6 +166,7 @@ def llama_guard_completion_response():
 
 
 def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
+    content = "test string"
     unsafe_message = "\n\nunsafe\nS2,S3"
     response = ChatCompletionResponse(
         model="foo",
@@ -176,25 +181,29 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
             )
         ],
     )
+
+    expected_metadata = [{"categories": ["Non-Violent Crimes.", "Sex Crimes."]}]
+
     unsafe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
-    (
-        response,
-        scores,
-        _,
-        metadata_list,
-    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        response, [unsafe_score], "risk", [{"foo": "bar"}]
+    (new_response, scores, detection_type, metadata,) = asyncio.run(
+        llama_guard_detection_instance.post_process_completion_results(
+            response, [unsafe_score], "risk"
+        )
     )
-    assert isinstance(response, ChatCompletionResponse)
-    assert response.choices[0].message.content == "unsafe"
+
+    assert isinstance(new_response, ChatCompletionResponse)
+    assert new_response.choices[0].message.content == "unsafe"
     assert scores[0] == unsafe_score
-    assert len(response.choices) == 1
-    assert metadata_list == [{"foo": "bar"}]
+    assert len(new_response.choices) == 1
+    assert detection_type == "risk"
+    # post_process_completion_results function returns array of metadata per choice
+    assert metadata == expected_metadata
 
 
 def test_post_process_content_works_for_safe(llama_guard_detection):
+    content = "test string"
     safe_message = "safe"
     response = ChatCompletionResponse(
         model="foo",
@@ -212,19 +221,19 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     safe_score = 0.99
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
     # NOTE: we are testing private function here
-    (
-        response,
-        scores,
-        _,
-        _,
-    ) = llama_guard_detection_instance._LlamaGuard__post_process_result(
-        response, [safe_score], "risk", None
+    (new_response, scores, detection_type, metadata,) = asyncio.run(
+        llama_guard_detection_instance.post_process_completion_results(
+            response, [safe_score], "risk"
+        )
     )
 
-    assert isinstance(response, ChatCompletionResponse)
-    assert len(response.choices) == 1
-    assert response.choices[0].message.content == "safe"
+    assert isinstance(new_response, ChatCompletionResponse)
+    assert new_response.choices[0].message.content == "safe"
     assert scores[0] == safe_score
+    assert len(new_response.choices) == 1
+    assert detection_type == "risk"
+    # post_process_completion_results function returns array of metadata per choice
+    assert metadata == []
 
 
 #### Content detection tests
@@ -346,6 +355,8 @@ def test_generation_analyze(llama_guard_detection, llama_guard_completion_respon
 def test_risk_bank_extraction(llama_guard_detection):
     llama_guard_detection_instance = asyncio.run(llama_guard_detection)
 
-    risk_bank_objs = llama_guard_detection_instance.risk_bank_objs
+    risk_bank_objs = asyncio.run(
+        llama_guard_detection_instance._get_predefined_risk_bank()
+    )
     assert len(risk_bank_objs) == 4
     assert risk_bank_objs[0].key.value == "S1"

@@ -47,8 +47,65 @@ class ContentsDetectionResponseObject(BaseModel):
     detection_type: str = Field(examples=["simple_example"])
     # Score of detection
     score: float = Field(examples=[0.5])
-    # Optional metadata, containing more information on the detection
+    # Optional metadata for additional model information provided by the model
     metadata: Optional[Dict] = {}
+
+    @staticmethod
+    def from_chat_completion_response(
+        response, scores, detection_type, req_content: str, metadata_per_choice=None
+    ):
+        """Function to convert openai chat completion response to [fms] contents detection
+        response object
+
+        Args:
+            response: ChatCompletionResponse
+                Chat completion response object
+            scores: List[float]
+                Scores for individual responses
+            detection_type: str
+                Type of the detection
+            req_content: str
+               Input content in the request
+            metadata_per_choice: Optional[List[Dict]]
+                Optional list of dicts containing metadata response provided by the model,
+                one dict per choice
+        Returns:
+            List[ContentsDetectionResponseObject]
+        """
+
+        detection_responses = []
+        start = 0
+        end = len(req_content)
+
+        for i, choice in enumerate(response.choices):
+            content = choice.message.content
+            # NOTE: for providing spans, we currently consider entire generated text as a span.
+            # This is because, at the time of writing, the generative guardrail models does not
+            # provide specific information about input text, which can be used to deduce spans.
+            if content and isinstance(content, str):
+                response_object = ContentsDetectionResponseObject(
+                    detection_type=detection_type,
+                    detection=content.strip(),
+                    start=start,
+                    end=end,
+                    text=req_content,
+                    score=scores[i],
+                    metadata=metadata_per_choice[i] if metadata_per_choice else {},
+                ).model_dump()
+                detection_responses.append(response_object)
+            else:
+                # This case should be unlikely but we handle it since a detection
+                # can't be returned without the content
+                # A partial response could be considered in the future
+                # but that would likely not look like the current ErrorResponse
+                return ErrorResponse(
+                    message=f"Choice {i} from chat completion does not have content. \
+                        Consider updating input and/or parameters for detections.",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
+
+        return detection_responses
 
 
 class ContentsDetectionResponse(RootModel):
@@ -57,55 +114,23 @@ class ContentsDetectionResponse(RootModel):
     root: List[List[ContentsDetectionResponseObject]]
 
     @staticmethod
-    def from_chat_completion_response(results, contents: List[str]):
-        """Function to convert openai chat completion response to [fms] contents detection response
-
-        Args:
-            results: List(Tuple(
-                response: ChatCompletionResponse,
-                scores: List[float],
-                detection_type,
-            ))
-            contents: List[str]
-               List of contents in the request
-        """
+    def from_chat_completion_response(results, contents: List[str], *args, **kwargs):
         contents_detection_responses = []
 
-        for content_idx, (response, scores, detection_type, metadata_list) in enumerate(
-            results
-        ):
+        for content_idx, (response, scores, detection_type) in enumerate(results):
+            detection_responses = (
+                ContentsDetectionResponseObject.from_chat_completion_response(
+                    response,
+                    scores,
+                    detection_type,
+                    contents[content_idx],
+                    *args,
+                    **kwargs,
+                )
+            )
+            if isinstance(detection_responses, ErrorResponse):
+                return detection_responses
 
-            detection_responses = []
-            start = 0
-            end = len(contents[content_idx])
-
-            for i, choice in enumerate(response.choices):
-                content = choice.message.content
-                # NOTE: for providing spans, we currently consider entire generated text as a span.
-                # This is because, at the time of writing, the generative guardrail models does not
-                # provide specific information about input text, which can be used to deduce spans.
-                if content and isinstance(content, str):
-                    response_object = ContentsDetectionResponseObject(
-                        detection_type=detection_type,
-                        detection=content.strip(),
-                        start=start,
-                        end=end,
-                        text=contents[content_idx],
-                        score=scores[i],
-                        metadata=metadata_list[i] if metadata_list else {},
-                    ).model_dump()
-                    detection_responses.append(response_object)
-                else:
-                    # This case should be unlikely but we handle it since a detection
-                    # can't be returned without the content
-                    # A partial response could be considered in the future
-                    # but that would likely not look like the current ErrorResponse
-                    return ErrorResponse(
-                        message=f"Choice {i} from chat completion does not have content. \
-                            Consider updating input and/or parameters for detections.",
-                        type="BadRequestError",
-                        code=HTTPStatus.BAD_REQUEST.value,
-                    )
             contents_detection_responses.append(detection_responses)
 
         return ContentsDetectionResponse(root=contents_detection_responses)
@@ -231,7 +256,7 @@ class DetectionResponseObject(BaseModel):
     detection_type: str = Field(examples=["simple_example"])
     # Score of detection
     score: float = Field(examples=[0.5])
-    # Optional metadata, containing more information on the detection
+    # Optional metadata for additional model information provided by the model
     metadata: Optional[Dict] = {}
 
 
@@ -245,7 +270,7 @@ class DetectionResponse(RootModel):
         response: ChatCompletionResponse,
         scores: List[float],
         detection_type: str,
-        metadata_list: Optional[List[Dict]],
+        metadata_per_choice: Optional[List[Dict]] = None,
     ):
         """Function to convert openai chat completion response to [fms] chat detection response"""
         detection_responses = []
@@ -256,7 +281,7 @@ class DetectionResponse(RootModel):
                     detection_type=detection_type,
                     detection=content.strip(),
                     score=scores[i],
-                    metadata=metadata_list[i] if metadata_list else {},
+                    metadata=metadata_per_choice[i] if metadata_per_choice else {},
                 ).model_dump()
                 detection_responses.append(response_object)
             else:

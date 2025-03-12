@@ -50,6 +50,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     # Attribute to be put in metadata - can expand to list in future
     METADATA_ATTRIBUTE = "confidence"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     ##### Private / Internal functions ###################################################
 
     def __preprocess(
@@ -256,10 +259,18 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type, metadata_list) = result
+            (
+                chat_response,
+                scores,
+                detection_type,
+                metadata,
+            ) = await self.post_process_completion_results(*result)
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type, metadata_list
+            chat_response,
+            scores,
+            detection_type,
+            metadata_per_choice=metadata,
         )
 
     async def generation_analyze(
@@ -296,8 +307,16 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type, metadata_list) = result
+            (
+                chat_response,
+                scores,
+                detection_type,
+                metadata,
+            ) = await self.post_process_completion_results(*result)
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type, metadata_list
+            chat_response,
+            scores,
+            detection_type,
+            metadata_per_choice=metadata,
         )

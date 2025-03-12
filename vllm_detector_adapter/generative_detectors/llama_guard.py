@@ -12,6 +12,7 @@ from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ContentsDetectionRequest,
     ContentsDetectionResponse,
+    ContentsDetectionResponseObject,
 )
 from vllm_detector_adapter.utils import DetectorType
 
@@ -29,21 +30,46 @@ class LlamaGuard(ChatCompletionDetectionBase):
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "categories"
 
-    def __post_process_result(self, response, scores, detection_type, metadata_list):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Initialize risk_bank
+        self.risk_bank = None
+
+    async def __get_risk_bank(self):
+        # Process risk_bank_objs
+
+        if not self.risk_bank:
+            logger.info("Risk bank not found in cache. Generating now.")
+            risk_bank_objs = await self._get_predefined_risk_bank()
+
+            if risk_bank_objs:
+                risk_bank = {
+                    risk.key.value: risk.value.value for risk in risk_bank_objs
+                }
+            else:
+                logger.warning(
+                    f"{self.__class__.__name__} is missing the RISK_BANK_VAR_NAME variable"
+                )
+                risk_bank = {}
+
+            # Store this risk bank with the class for quick future use
+            self.risk_bank = risk_bank
+
+        return self.risk_bank
+
+    async def post_process_completion_results(self, response, scores, detection_type):
         """Function to process chat completion results for content type detection.
 
         Args:
             response: ChatCompletionResponse,
             scores: List[float],
-            detection_type: str,
-            metadata_list: Optional[List[Dict]]
+            detection_type: str
         Returns:
-            Tuple(
-                response: ChatCompletionResponse,
-                scores: List[float],
-                detection_type: str,
-                metadata_list: Optional[List[Dict]]
-            )
+            response: ChatCompletionResponse
+            scores: List[float]
+            detection_type: str
+            metadata: dict
         """
         # NOTE: Llama-guard returns specific safety categories in the last line and in a csv format
         # this is guided by the prompt definition of the model, so we expect llama_guard to adhere to it
@@ -54,23 +80,36 @@ class LlamaGuard(ChatCompletionDetectionBase):
 
         new_choices = []
         new_scores = []
+        metadata_per_choice = []
+
+        risk_bank = await self.__get_risk_bank()
 
         # NOTE: we are flattening out choices here as different categories
         for i, choice in enumerate(response.choices):
             content = choice.message.content
+            metadata = {}
             if self.UNSAFE_TOKEN in content:
-                # Reason for reassigning the content:
-                # We want to remove the safety category from the content
                 choice.message.content = self.UNSAFE_TOKEN
                 new_choices.append(choice)
                 new_scores.append(scores[i])
+                # Process categories
+                metadata[self.RISK_BANK_VAR_NAME] = []
+                for category in content.splitlines()[-1].split(","):
+                    if category in risk_bank:
+                        category_name = risk_bank.get(category)
+                        metadata[self.RISK_BANK_VAR_NAME].append(category_name)
+                    else:
+                        logger.warning(
+                            f"Category {category} not found in risk bank for model {self.__class__.__name__}"
+                        )
+                metadata_per_choice.append(metadata)
             else:
                 # "safe" case
                 new_choices.append(choice)
                 new_scores.append(scores[i])
 
         response.choices = new_choices
-        return (response, new_scores, detection_type, metadata_list)
+        return response, new_scores, detection_type, metadata_per_choice
 
     async def content_analysis(
         self,
@@ -115,15 +154,30 @@ class LlamaGuard(ChatCompletionDetectionBase):
         # If there is any error, return that otherwise, return the whole response
         # properly formatted.
         processed_result = []
-        for result in results:
+        for result_idx, result in enumerate(results):
             # NOTE: we are only sending 1 of the error results
             # and not every one (not cumulative)
             if isinstance(result, ErrorResponse):
                 return result
             else:
                 # Process results to split out safety categories into separate objects
-                processed_result.append(self.__post_process_result(*result))
+                (
+                    response,
+                    new_scores,
+                    detection_type,
+                    metadata_per_choice,
+                ) = await self.post_process_completion_results(*result)
 
-        return ContentsDetectionResponse.from_chat_completion_response(
-            processed_result, request.contents
-        )
+                new_result = (
+                    ContentsDetectionResponseObject.from_chat_completion_response(
+                        response,
+                        new_scores,
+                        detection_type,
+                        request.contents[result_idx],
+                        metadata_per_choice=metadata_per_choice,
+                    )
+                )
+
+                processed_result.append(new_result)
+
+        return ContentsDetectionResponse(root=processed_result)

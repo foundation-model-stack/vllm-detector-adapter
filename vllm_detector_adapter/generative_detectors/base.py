@@ -26,6 +26,7 @@ from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContentsDetectionRequest,
     ContentsDetectionResponse,
+    ContentsDetectionResponseObject,
     ContextAnalysisRequest,
     DetectionResponse,
     GenerationDetectionRequest,
@@ -42,7 +43,13 @@ DEFAULT_ROLE_FOR_CONTENTS_DETECTION = "user"
 class ChatCompletionDetectionBase(OpenAIServingChat):
     """Base class for developing chat completion based detectors"""
 
-    def __init__(self, task_template: str, output_template: str, *args, **kwargs):
+    def __init__(
+        self,
+        task_template: str,
+        output_template: str,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
 
         self.jinja_env = jinja2.Environment()
@@ -50,12 +57,9 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         self.output_template = self.load_template(output_template)
 
-        if hasattr(self, "RISK_BANK_VAR_NAME"):
-            self.risk_bank_objs = self._get_predefined_risk_bank()
-
     ##### Template functions ###################################################
 
-    def _get_predefined_risk_bank(self) -> List[jinja2.nodes.Pair]:
+    async def _get_predefined_risk_bank(self) -> List[jinja2.nodes.Pair]:
         """Get the list of risks defined in the chat template"""
 
         if not hasattr(self, "RISK_BANK_VAR_NAME"):
@@ -63,7 +67,17 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
                 f"RISK_BANK_VAR_NAME is not defined for {self.__class__.__name__} type of models"
             )
 
-        ast = self.jinja_env.parse(self.chat_template)
+        if self.chat_template:
+            # use chat template directly, since it might have been provided to override
+            # default model's chat template
+            chat_template = self.chat_template
+        else:
+            # use model's default chat template
+            # NOTE: we need to get tokenizer separately to support LoRA adapters
+            tokenizer = await self.engine_client.get_tokenizer()
+            chat_template = tokenizer.chat_template
+
+        ast = self.jinja_env.parse(chat_template)
         risk_bank_objs = []
 
         # Note: jinja2.nodes.Assign is type of node
@@ -269,6 +283,30 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         return chat_response, scores, self.DETECTION_TYPE, metadata_list
 
+    async def post_process_completion_results(
+        self, response: ChatCompletionResponse, scores: List[float], detection_type: str
+    ) -> Tuple[ChatCompletionResponse, List[float], str, Optional[List[Dict]]]:
+        """Function to process the results of chat completion and to divide it
+        into logical blocks that can be converted into different detection result
+        objects
+
+        NOTE: This function is kept async to allow consistent usage with llama-guard's implementation
+        and in case this function needs to access other async function or
+        execute heavier tasks in future.
+
+        Args:
+            response: ChatCompletionResponse,
+            scores: List[float],
+            detection_type: str
+        Returns:
+            response: ChatCompletionResponse
+            scores: List[float]
+            detection_type: str
+            metadata_list: List[dict] or None
+        """
+        metadata_list = None
+        return response, scores, detection_type, metadata_list
+
     ##### Detection methods ####################################################
     # Base implementation of other detection endpoints like content can go here
 
@@ -306,10 +344,18 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type, metadata_list) = result
+            (
+                chat_response,
+                scores,
+                detection_type,
+                metadata,
+            ) = await self.post_process_completion_results(*result)
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type, metadata_list
+            chat_response,
+            scores,
+            detection_type,
+            metadata_per_choice=metadata,
         )
 
     async def context_analyze(
@@ -368,15 +414,33 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         # If there is any error, return that otherwise, return the whole response
         # properly formatted.
-        for result in results:
+        processed_result = []
+        for result_idx, result in enumerate(results):
             # NOTE: we are only sending 1 of the error results
             # and not every or not cumulative
             if isinstance(result, ErrorResponse):
                 return result
+            else:
+                (
+                    response,
+                    new_scores,
+                    detection_type,
+                    metadata,
+                ) = await self.post_process_completion_results(*result)
 
-        return ContentsDetectionResponse.from_chat_completion_response(
-            results, request.contents
-        )
+                new_result = (
+                    ContentsDetectionResponseObject.from_chat_completion_response(
+                        response,
+                        new_scores,
+                        detection_type,
+                        request.contents[result_idx],
+                        metadata_per_choice=metadata,
+                    )
+                )
+
+                processed_result.append(new_result)
+
+        return ContentsDetectionResponse(root=processed_result)
 
     async def generation_analyze(
         self,
@@ -414,8 +478,16 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Propagate any errors from OpenAI API
             return result
         else:
-            (chat_response, scores, detection_type, metadata_list) = result
+            (
+                chat_response,
+                scores,
+                detection_type,
+                metadata,
+            ) = await self.post_process_completion_results(*result)
 
         return DetectionResponse.from_chat_completion_response(
-            chat_response, scores, detection_type, metadata_list
+            chat_response,
+            scores,
+            detection_type,
+            metadata_per_choice=metadata,
         )
