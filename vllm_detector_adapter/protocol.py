@@ -59,7 +59,7 @@ class ContentsDetectionResponseObject(BaseModel):
                 Type of the detection
             req_content: str
                Input content in the request
-            metadata_per_choice: Optional List[Dict]
+            metadata_per_choice: Optional[List[Dict]]
                 List of dict containing metadata response provided by the model
         Returns:
             List[ContentsDetectionResponseObject]
