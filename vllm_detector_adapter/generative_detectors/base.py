@@ -1,7 +1,7 @@
 # Standard
 from http import HTTPStatus
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import asyncio
 import codecs
 import math
@@ -274,7 +274,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
     async def post_process_completion_results(
         self, response: ChatCompletionResponse, scores: List[float], detection_type: str
-    ) -> Tuple[ChatCompletionResponse, List[float], str, Optional[List[Dict]]:
+    ) -> Tuple[ChatCompletionResponse, List[float], str, Optional[List[Dict]]]:
         """Function to process the results of chat completion and to divide it
         into logical blocks that can be converted into different detection result
         objects
