@@ -51,11 +51,11 @@ class ContentsDetectionResponseObject(BaseModel):
         response object
 
         Args:
-            response: ChatCompletionResponse,
+            response: ChatCompletionResponse
                 Chat completion response object
-            scores: List[float],
+            scores: List[float]
                 Scores for individual responses
-            detection_type: str,
+            detection_type: str
                 Type of the detection
             req_content: str
                Input content in the request
