@@ -27,7 +27,6 @@ from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContentsDetectionRequest,
     ContentsDetectionResponse,
-    ContentsDetectionResponseObject,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,

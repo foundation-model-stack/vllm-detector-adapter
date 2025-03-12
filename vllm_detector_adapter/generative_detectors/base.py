@@ -66,9 +66,17 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
                 f"RISK_BANK_VAR_NAME is not defined for {self.__class__.__name__} type of models"
             )
 
-        # NOTE: we need to get tokenizer separately to support LoRA adapters
-        tokenizer = await self.engine_client.get_tokenizer()
-        ast = self.jinja_env.parse(tokenizer.chat_template)
+        if self.chat_template:
+            # use chat template directly, since it might have been provided to override
+            # default model's chat template
+            chat_template = self.chat_template
+        else:
+            # use model's default chat template
+            # NOTE: we need to get tokenizer separately to support LoRA adapters
+            tokenizer = await self.engine_client.get_tokenizer()
+            chat_template = tokenizer.chat_template
+
+        ast = self.jinja_env.parse(chat_template)
         risk_bank_objs = []
 
         # Note: jinja2.nodes.Assign is type of node
