@@ -196,11 +196,12 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         """Granite guardian chat request preprocess is just detector parameter updates"""
         return self.__preprocess(request)
 
-    def process_metadata_list(
-        self, response: ChatCompletionResponse
-    ) -> Tuple[ChatCompletionResponse, Optional[List[Dict]]]:
+    async def post_process_completion_results(
+        self, response: ChatCompletionResponse, scores: List[float], detection_type: str
+    ) -> Tuple[ChatCompletionResponse, List[float], str, Optional[List[Dict]]]:
         """Process Granite Guardian chat completion tags for metadata. Metadata corresponds to
-        one Dict per choice in the chat completion response
+        one Dict per choice in the chat completion response. This implementation
+        does not require async, but the base impl is async
         """
         metadata_list = []
         for i, choice in enumerate(response.choices):
@@ -222,7 +223,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                     metadata_content = metadata_search.group(1).strip()
                     metadata = {self.METADATA_ATTRIBUTE: metadata_content}
             metadata_list.append(metadata)
-        return response, metadata_list
+        # Scores and detection type are just passed through
+        return response, scores, detection_type, metadata_list
 
     ##### Overriding model-class specific endpoint functionality ##################
 

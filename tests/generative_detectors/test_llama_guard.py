@@ -166,7 +166,6 @@ def llama_guard_completion_response():
 
 
 def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
-    content = "test string"
     unsafe_message = "\n\nunsafe\nS2,S3"
     response = ChatCompletionResponse(
         model="foo",
@@ -203,7 +202,6 @@ def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
 
 
 def test_post_process_content_works_for_safe(llama_guard_detection):
-    content = "test string"
     safe_message = "safe"
     response = ChatCompletionResponse(
         model="foo",

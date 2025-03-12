@@ -431,7 +431,7 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     )
 
 
-#### Metadata processing tests
+#### Helper function post process tests
 
 
 def test_process_metadata_list_no_metadata(
@@ -439,11 +439,11 @@ def test_process_metadata_list_no_metadata(
 ):
     # Older Granite Guardian versions do not provide info like confidence
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    (
-        chat_completion_response,
-        metadata_list,
-    ) = granite_guardian_detection_instance.process_metadata_list(
-        granite_guardian_completion_response
+    dummy_scores = [0.2, 0.2]
+    (chat_completion_response, scores, _, metadata_list) = asyncio.run(
+        granite_guardian_detection_instance.post_process_completion_results(
+            granite_guardian_completion_response, dummy_scores, "risk"
+        )
     )
     assert len(metadata_list) == 2  # 2 choices
     # Both empty dicts since there was no extra response info
@@ -459,11 +459,11 @@ def test_process_metadata_list_with_confidence(
 ):
     # Starting Granite Guardian 3.2, info like confidence is provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    (
-        chat_completion_response,
-        metadata_list,
-    ) = granite_guardian_detection_instance.process_metadata_list(
-        granite_guardian_completion_response_extra_content
+    dummy_scores = [0.2, 0.2]
+    (chat_completion_response, scores, _, metadata_list) = asyncio.run(
+        granite_guardian_detection_instance.post_process_completion_results(
+            granite_guardian_completion_response_extra_content, dummy_scores, "risk"
+        )
     )
     assert len(metadata_list) == 2  # 2 choices
     assert metadata_list[0] == {"confidence": "High"}

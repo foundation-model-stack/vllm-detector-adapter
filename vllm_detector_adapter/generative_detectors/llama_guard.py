@@ -69,7 +69,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
             response: ChatCompletionResponse
             scores: List[float]
             detection_type: str
-            metadata: dict
+            metadata_per_choice: List[dict]
         """
         # NOTE: Llama-guard returns specific safety categories in the last line and in a csv format
         # this is guided by the prompt definition of the model, so we expect llama_guard to adhere to it
