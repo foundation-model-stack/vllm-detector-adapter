@@ -272,7 +272,9 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         return chat_response, scores, self.DETECTION_TYPE
 
-    async def post_process_completion_results(self, response, scores, detection_type):
+    async def post_process_completion_results(
+        self, response: ChatCompletionResponse, scores: List[float], detection_type: str
+    ) -> Tuple[ChatCompletionResponse, List[float], str, str]:
         """Function to process the results of chat completion and to divide it
         into logical blocks that can be converted into different detection result
         objects
@@ -280,9 +282,19 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         NOTE: This function is kept async to allow consistent usage with llama-guard's implementation
         and in case this function needs to access other async function or
         execute heavier tasks in future.
+
+        Args:
+            response: ChatCompletionResponse,
+            scores: List[float],
+            detection_type: str
+        Returns:
+            response: ChatCompletionResponse
+            scores: List[float]
+            detection_type: str
+            metadata: List[dict] or None
         """
-        metadata = None
-        return response, scores, detection_type, metadata
+        metadata_list = None
+        return response, scores, detection_type, metadata_list
 
     ##### Detection methods ####################################################
     # Base implementation of other detection endpoints like content can go here

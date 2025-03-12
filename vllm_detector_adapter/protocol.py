@@ -259,7 +259,7 @@ class DetectionResponse(RootModel):
         response: ChatCompletionResponse,
         scores: List[float],
         detection_type: str,
-        metadata_per_choice=None,
+        metadata_per_choice: str = None,
     ):
         """Function to convert openai chat completion response to [fms] chat detection response"""
         detection_responses = []
