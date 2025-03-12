@@ -276,6 +276,10 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         """Function to process the results of chat completion and to divide it
         into logical blocks that can be converted into different detection result
         objects
+
+        NOTE: This function is kept async to allow consistent usage with llama-guard's implementation
+        and in case this function needs to access other async function or
+        execute heavier tasks in future.
         """
         metadata = None
         return response, scores, detection_type, metadata
