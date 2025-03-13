@@ -220,6 +220,54 @@ def granite_guardian_completion_response_extra_content():
 
 ### Tests #####################################################################
 
+#### Private metadata extraction tests
+
+
+def test__extract_no_metadata(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    # Older Granite Guardian versions do not provide info like confidence
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    choice_index = 0
+    content = granite_guardian_completion_response.choices[choice_index].message.content
+    # NOTE: private function tested here
+
+    metadata = granite_guardian_detection_instance._extract_metadata(
+        granite_guardian_completion_response, choice_index, content
+    )
+    assert metadata == {}
+    # Content unchanged
+    assert (
+        granite_guardian_completion_response.choices[choice_index].message.content
+        == content
+    )
+
+
+def test__extract_metadata_with_confidence(
+    granite_guardian_detection, granite_guardian_completion_response_extra_content
+):
+    # Starting Granite Guardian 3.2, info like confidence is provided
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+
+    # NOTE: private function tested here
+    choice_index = 0
+    content = granite_guardian_completion_response_extra_content.choices[
+        choice_index
+    ].message.content
+    # NOTE: private function tested here
+    metadata = granite_guardian_detection_instance._extract_metadata(
+        granite_guardian_completion_response_extra_content, choice_index, content
+    )
+    assert metadata == {"confidence": "High"}
+    # Content should be updated
+    assert (
+        granite_guardian_completion_response_extra_content.choices[
+            choice_index
+        ].message.content
+        == "No"
+    )
+
+
 #### Helper function tests
 
 
