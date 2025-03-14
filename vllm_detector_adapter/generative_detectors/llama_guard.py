@@ -102,11 +102,11 @@ class LlamaGuard(ChatCompletionDetectionBase):
                         logger.warning(
                             f"Category {category} not found in risk bank for model {self.__class__.__name__}"
                         )
-                metadata_per_choice.append(metadata)
             else:
                 # "safe" case
                 new_choices.append(choice)
                 new_scores.append(scores[i])
+            metadata_per_choice.append(metadata)
 
         response.choices = new_choices
         return response, new_scores, detection_type, metadata_per_choice

@@ -231,7 +231,52 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     assert len(new_response.choices) == 1
     assert detection_type == "risk"
     # post_process_completion_results function returns array of metadata per choice
-    assert metadata == []
+    assert metadata == [{}]
+
+
+def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
+    safe_message = "safe"
+    unsafe_message = "\n\nunsafe\nS2,S3"
+    response = ChatCompletionResponse(
+        model="foo",
+        usage=UsageInfo(prompt_tokens=1, total_tokens=1),
+        choices=[
+            ChatCompletionResponseChoice(
+                index=0,
+                message=ChatMessage(
+                    content=safe_message,
+                    role=" assistant",
+                ),
+            ),
+            ChatCompletionResponseChoice(
+                index=1,
+                message=ChatMessage(
+                    content=unsafe_message,
+                    role=" assistant",
+                ),
+            ),
+        ],
+    )
+
+    expected_metadata = [{}, {"categories": ["Non-Violent Crimes.", "Sex Crimes."]}]
+
+    safe_score = 0.6
+    unsafe_score = 0.99
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    # NOTE: we are testing private function here
+    (new_response, scores, detection_type, metadata,) = asyncio.run(
+        llama_guard_detection_instance.post_process_completion_results(
+            response, [safe_score, unsafe_score], "risk"
+        )
+    )
+
+    assert isinstance(new_response, ChatCompletionResponse)
+    assert new_response.choices[1].message.content == "unsafe"
+    assert scores[1] == unsafe_score
+    assert len(new_response.choices) == 2
+    assert detection_type == "risk"
+    # post_process_completion_results function returns array of metadata per choice
+    assert metadata == expected_metadata
 
 
 #### Content detection tests
