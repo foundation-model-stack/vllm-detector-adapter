@@ -337,6 +337,8 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         # Optionally make model-dependent adjustments for the request
         request = self.preprocess_request(request, fn_type=DetectorType.TEXT_CHAT)
+        if isinstance(request, ErrorResponse):
+            return request
 
         chat_completion_request = request.to_chat_completion_request(model_name)
         if isinstance(chat_completion_request, ErrorResponse):
