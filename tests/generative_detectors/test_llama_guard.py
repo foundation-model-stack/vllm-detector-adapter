@@ -234,7 +234,7 @@ def test_post_process_content_works_for_safe(llama_guard_detection):
     assert metadata == [{}]
 
 
-def test_post_process_content_splits_unsafe_categories(llama_guard_detection):
+def test_post_process_content_splits_safe_and_unsafe_categories(llama_guard_detection):
     safe_message = "safe"
     unsafe_message = "\n\nunsafe\nS2,S3"
     response = ChatCompletionResponse(
