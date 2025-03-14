@@ -191,7 +191,6 @@ def test_content_analysis_success(detection_base, completion_response):
         assert detections[0][0]["start"] == 0
         assert detections[0][0]["end"] == len(content_request.contents[0])
         assert detections[0][0]["metadata"] == {}
-
         # 2nd choice as 2nd label
         assert detections[0][1]["detection"] == "yes"
         assert detections[0][1]["score"] == 0.1

@@ -1,11 +1,16 @@
 # Standard
 from http import HTTPStatus
-from typing import Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
+import re
 
 # Third Party
 from fastapi import Request
 from pydantic import ValidationError
-from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ErrorResponse
+from vllm.entrypoints.openai.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
+    ErrorResponse,
+)
 
 # Local
 from vllm_detector_adapter.detector_dispatcher import detector_dispatcher
@@ -41,6 +46,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "risk_bank"
+
+    # Attributes to be put in metadata
+    METADATA_ATTRIBUTES = ["confidence"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -166,7 +174,27 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 code=HTTPStatus.BAD_REQUEST.value,
             )
 
-    ##### General request / response processing functions ##################
+    def _extract_metadata(
+        self, response: ChatCompletionResponse, choice_index: int, content
+    ):
+        """Extract metadata from content and update content as necessary"""
+        # Avoid messing up metadata order in case content is not present
+        metadata = {}
+        if content and isinstance(content, str):
+            for metadata_attribute in self.METADATA_ATTRIBUTES:
+                regex_str = f"<{metadata_attribute}> (.*?) </{metadata_attribute}>"
+                # Some (older) Granite Guardian versions may not contain extra information
+                # for metadata. Make sure this does not break anything
+                if metadata_search := re.search(regex_str, content):
+                    # Update choice content as necessary, removing the metadata portion
+                    response.choices[choice_index].message.content = re.sub(
+                        regex_str, "", content
+                    ).strip()
+                    metadata_content = metadata_search.group(1).strip()
+                    metadata[metadata_attribute] = metadata_content
+        return metadata
+
+    ##### General overriding request / response processing functions ##################
 
     @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
     def preprocess_request(self, *args, **kwargs):
@@ -187,6 +215,23 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Granite guardian chat request preprocess is just detector parameter updates"""
         return self.__preprocess(request)
+
+    async def post_process_completion_results(
+        self, response: ChatCompletionResponse, scores: List[float], detection_type: str
+    ) -> Tuple[ChatCompletionResponse, List[float], str, Optional[List[Dict]]]:
+        """Process Granite Guardian chat completion tags for metadata. Metadata corresponds to
+        one Dict per choice in the chat completion response. This implementation
+        does not require async, but the base impl is async
+        """
+        metadata_list = []
+        for i, choice in enumerate(response.choices):
+            content = choice.message.content
+            metadata = self._extract_metadata(
+                response, i, content
+            )  # response could be updated
+            metadata_list.append(metadata)
+        # Scores and detection type are just passed through
+        return response, scores, detection_type, metadata_list
 
     ##### Overriding model-class specific endpoint functionality ##################
 

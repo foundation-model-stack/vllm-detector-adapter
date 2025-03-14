@@ -20,6 +20,7 @@ ROLE_OVERRIDE_PARAM_NAME = "role_override"
 
 
 class ContentsDetectionRequest(BaseModel):
+    # Contents list to run detections on
     contents: List[str] = Field(
         examples=[
             "Hi is this conversation guarded",
@@ -27,20 +28,26 @@ class ContentsDetectionRequest(BaseModel):
         ]
     )
     # Parameter passthrough
-    # NOTE: this endpoint does support the optional `role_override` parameter
-    # which allows use of different role when making a call to the guardrails LLM
-    # via chat/completions
+    # NOTE: this endpoint supports the optional `role_override` parameter,
+    # which allows use of a different role when making a call to the guardrails LLM
+    # via `/chat/completions`
     detector_params: Optional[Dict] = {}
 
 
 class ContentsDetectionResponseObject(BaseModel):
+    # Start index of the text corresponding to the detection
     start: int = Field(examples=[0])
+    # End index of the text corresponding to the detection
     end: int = Field(examples=[10])
+    # Text corresponding to the detection
     text: str = Field(examples=["text"])
+    # Detection label
     detection: str = Field(examples=["positive"])
+    # Detection type
     detection_type: str = Field(examples=["simple_example"])
+    # Score of detection
     score: float = Field(examples=[0.5])
-    # Metadata for additional model information provided by the model
+    # Optional metadata for additional model information provided by the model
     metadata: Optional[Dict] = {}
 
     @staticmethod
@@ -60,7 +67,8 @@ class ContentsDetectionResponseObject(BaseModel):
             req_content: str
                Input content in the request
             metadata_per_choice: Optional[List[Dict]]
-                List of dict containing metadata response provided by the model
+                Optional list of dicts containing metadata response provided by the model,
+                one dict per choice
         Returns:
             List[ContentsDetectionResponseObject]
         """
@@ -135,7 +143,7 @@ class DetectionChatMessageParam(TypedDict):
     # The role of the message's author
     role: Required[str]
 
-    # The contents of the message
+    # Content of the message
     content: str
 
 
@@ -242,10 +250,13 @@ class GenerationDetectionRequest(BaseModel):
 
 
 class DetectionResponseObject(BaseModel):
+    # Detection label
     detection: str = Field(examples=["positive"])
+    # Detection type
     detection_type: str = Field(examples=["simple_example"])
+    # Score of detection
     score: float = Field(examples=[0.5])
-    # Metadata for additional model information provided by the model
+    # Optional metadata for additional model information provided by the model
     metadata: Optional[Dict] = {}
 
 
