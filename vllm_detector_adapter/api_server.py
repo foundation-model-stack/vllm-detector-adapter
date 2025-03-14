@@ -295,7 +295,7 @@ def add_chat_detection_params(parser):
         choices=[
             member.lower() for member in generative_detectors.ModelTypes._member_names_
         ],
-        default=generative_detectors.ModelTypes.LLAMA_GUARD,
+        default=generative_detectors.ModelTypes.GRANITE_GUARDIAN,
         help="The model type of the generative model",
     )
     return parser

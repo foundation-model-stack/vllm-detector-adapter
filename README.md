@@ -35,8 +35,8 @@ curl -X 'POST' \
 ```
 
 ## Supported Model Types
-1. `GRANITE_GUARDIAN`
-1. `LLAMA_GUARD` (default)
+1. `GRANITE_GUARDIAN` (default)
+1. `LLAMA_GUARD`
 
 
 ## Running with TGIS adapter
