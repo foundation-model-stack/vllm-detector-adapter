@@ -36,6 +36,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
         # Initialize risk_bank
         self.risk_bank = None
 
+    ##### Private / Internal functions ###################################################
+
     async def __get_risk_bank(self):
         # Process risk_bank_objs
 
@@ -57,6 +59,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
             self.risk_bank = risk_bank
 
         return self.risk_bank
+
+    ##### General overriding request / response processing functions ##################
 
     async def post_process_completion_results(self, response, scores, detection_type):
         """Function to process chat completion results for content type detection.
@@ -110,6 +114,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
 
         response.choices = new_choices
         return response, new_scores, detection_type, metadata_per_choice
+
+    ##### Overriding model-class specific endpoint functionality ##################
 
     async def content_analysis(
         self,
