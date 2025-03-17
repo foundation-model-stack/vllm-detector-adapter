@@ -19,6 +19,7 @@ from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
     ContextAnalysisRequest,
+    DetectionChatMessageParam,
     DetectionResponse,
     GenerationDetectionRequest,
 )
@@ -43,6 +44,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     # Risks associated with generation analysis
     DEFAULT_GENERATION_DETECTION_RISK = "answer_relevance"
+
+    # Risk(s) associated with tools
+    TOOLS_RISKS = ["function_call"]
 
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "risk_bank"
@@ -92,6 +96,83 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 request.detector_params["chat_template_kwargs"] = {
                     "guardian_config": guardian_config
                 }
+
+        return request
+
+    def _make_tools_request(
+        self, request: ChatDetectionRequest
+    ) -> Union[ChatDetectionRequest, ErrorResponse]:
+        """Convert original chat detection request to Granite Guardian-compatible request with
+        tools, assistant, and user messages"""
+
+        if (
+            "risk_name" not in request.detector_params
+            or request.detector_params["risk_name"] not in self.TOOLS_RISKS
+        ):
+            # Provide error here, since otherwise tools message and assistant message
+            # flattening will not be applicable
+            return ErrorResponse(
+                message="tools analysis is not supported with given risk",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+
+        # 'Flatten' the assistant message, extracting the tool_calls functions
+        # Also check for user messages
+        assistant_message_idxs = []
+        assistant_message = None
+        user_message_idxs = []
+        user_message = None
+        for i, message in enumerate(request.messages):
+            assistant_tool_call_functions = []
+            if message.role == "assistant" and message.tool_calls:
+                for tool_call in message.tool_calls:
+                    assistant_tool_call_functions.append(tool_call.function)
+                assistant_message = DetectionChatMessageParam(
+                    role=message.role, content=assistant_tool_call_functions
+                )
+                assistant_message_idxs.append(i)
+
+            if message.role == "user":
+                user_message = message
+                user_message_idxs.append(i)
+
+        # Error if no assistant message was found
+        if not assistant_message or not assistant_message.content:
+            return ErrorResponse(
+                message="No assistant message was provided with tool_calls for analysis",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+        # Error if no user message was found
+        if not user_message or not user_message.content:
+            return ErrorResponse(
+                message="No user message was provided with content for analysis",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+        # Warning if multiple assistant messages were found
+        if len(assistant_message_idxs) > 1:
+            logger.warning(
+                "More than one assistant message with tool_calls was provided. Only the last will be used for analysis with tools."
+            )
+        # Warning if multiple user messages were found
+        if len(user_message_idxs) > 1:
+            logger.warning(
+                "More than one user message was provided. Only the last will be used for analysis with tools."
+            )
+
+        # Provide the inner tools functions as a message with role: tools
+        tools_functions = []
+        for tools in request.tools:
+            tools_functions.append(tools.function)
+        tools_message = DetectionChatMessageParam(role="tools", content=tools_functions)
+
+        # Replace request portions
+        # `tools` should not be putting on the chat completions request currently but we
+        # do not pass them on anyway, in case they could affect the completion generation
+        request.tools = []
+        request.messages = [tools_message, user_message, assistant_message]
 
         return request
 
@@ -213,7 +294,13 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     def preprocess_request(  # noqa: F811
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
-        """Granite guardian chat request preprocess is just detector parameter updates"""
+        """Granite guardian chat request preprocessing"""
+
+        if request.tools:
+            # Form tools message and other messages if tools are provided
+            request = self._make_tools_request(request)
+
+        # Detector param updates
         return self.__preprocess(request)
 
     async def post_process_completion_results(
