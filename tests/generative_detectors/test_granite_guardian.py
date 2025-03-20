@@ -512,7 +512,7 @@ def test_post_process_completion_no_metadata(
     # Older Granite Guardian versions do not provide info like confidence
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     dummy_scores = [0.2, 0.2]
-    (chat_completion_response, scores, _, metadata_list) = asyncio.run(
+    (chat_completion_response, _, _, metadata_list) = asyncio.run(
         granite_guardian_detection_instance.post_process_completion_results(
             granite_guardian_completion_response, dummy_scores, "risk"
         )
@@ -532,7 +532,7 @@ def test_post_process_completion_with_confidence(
     # Starting Granite Guardian 3.2, info like confidence is provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     dummy_scores = [0.2, 0.2]
-    (chat_completion_response, scores, _, metadata_list) = asyncio.run(
+    (chat_completion_response, _, _, metadata_list) = asyncio.run(
         granite_guardian_detection_instance.post_process_completion_results(
             granite_guardian_completion_response_extra_content, dummy_scores, "risk"
         )
@@ -787,38 +787,40 @@ def test_chat_detection_with_confidence(
         assert detection_1["metadata"] == {"confidence": "Low"}
 
 
-# def test_chat_detection_with_tools(
-#     granite_guardian_detection, granite_guardian_completion_response
-# ):
-#     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-#     tool_function = ToolFunctionObject(
-#         description="Fetches a list of comments",
-#         name="comment_list",
-#         parameters={"foo": "bar"},
-#     )
-#     tool = Tool(type="function", function=tool_function)
-#     tool_call_function = ToolCallFunctionObject(
-#         name="comment_list", arguments='{"awname_id":456789123,"count":15}'
-#     )
-#     tool_call = ToolCall(id="tool_call", type="function", function=tool_call_function)
-#     chat_request = ChatDetectionRequest(
-#         messages=[
-#             DetectionChatMessageParam(
-#                 role="user", content="How do I figure out how to break into a house?"
-#             ),
-#             DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
-#         ],
-#         tools=[tool],
-#         detector_params={"risk_name": "function_call", "n": 2},
-#     )
-#     with patch(
-#         "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
-#         return_value=granite_guardian_completion_response,
-#     ):
-#         detection_response = asyncio.run(
-#             granite_guardian_detection_instance.chat(chat_request)
-#         )
-#         assert type(detection_response) == DetectionResponse
+def test_chat_detection_with_tools(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    tool_function = ToolFunctionObject(
+        description="Fetches a list of comments",
+        name="comment_list",
+        parameters={"foo": "bar"},
+    )
+    tool = Tool(type="function", function=tool_function)
+    tool_call_function = ToolCallFunctionObject(
+        name="comment_list", arguments='{"awname_id":456789123,"count":15}'
+    )
+    tool_call = ToolCall(id="tool_call", type="function", function=tool_call_function)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
+        ],
+        tools=[tool],
+        detector_params={"risk_name": "function_call", "n": 2},
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
 
 
 #### Base class functionality tests

@@ -57,6 +57,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
     # Risk(s) associated with tools
     TOOLS_RISKS = ["function_call"]
+    # Indent level needed for Granite Guardian analysis
+    INDENT = 2
 
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "risk_bank"
@@ -139,14 +141,20 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 for tool_call in message["tool_calls"]:
                     tool_call_function = tool_call["function"]
                     # OpenAI stores function arguments as a str, but
-                    # Granite Guardian expects the arguments as a Dict
+                    # Granite Guardian expects the arguments as a Dict.
+                    # We still convert so that there is no unexpected behavior
+                    # when all the functions are converted to json string
+                    # with indentation
                     arg_dict = json.loads(tool_call_function["arguments"])
                     new_tool_call_function = GraniteGuardianToolCallFunctionObject(
                         name=tool_call_function["name"], arguments=arg_dict
                     )
                     assistant_tool_call_functions.append(new_tool_call_function)
+                assistant_content_string = json.dumps(
+                    assistant_tool_call_functions, indent=self.INDENT
+                )
                 assistant_message = DetectionChatMessageParam(
-                    role=message["role"], content=assistant_tool_call_functions
+                    role=message["role"], content=assistant_content_string
                 )
                 assistant_message_idxs.append(i)
 
@@ -183,7 +191,10 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         tools_functions = []
         for tools in request.tools:
             tools_functions.append(tools["function"])
-        tools_message = DetectionChatMessageParam(role="tools", content=tools_functions)
+        tools_content_string = json.dumps(tools_functions, indent=self.INDENT)
+        tools_message = DetectionChatMessageParam(
+            role="tools", content=tools_content_string
+        )
 
         # Replace request portions
         # `tools` should not be putting on the chat completions request currently but we

@@ -1,6 +1,6 @@
 # Standard
 from http import HTTPStatus
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 # Third Party
 from pydantic import BaseModel, Field, RootModel, ValidationError
@@ -216,7 +216,6 @@ class ChatDetectionRequest(BaseModel):
             {"role": message["role"], "content": message["content"]}
             for message in self.messages
         ]
-        # print("MESSAGES", messages)
 
         # Try to pass all detector_params through as additional parameters to chat completions.
         # We do not try to provide validation or changing of parameters here to not be dependent
@@ -229,7 +228,6 @@ class ChatDetectionRequest(BaseModel):
                 **self.detector_params,
             )
         except ValidationError as e:
-            # print("ERROR", repr(e.errors()))
             return ErrorResponse(
                 message=repr(e.errors()[0]),
                 type="BadRequestError",

@@ -345,7 +345,6 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Propagate any request problems
             return chat_completion_request
 
-        # print("REQUEST HERE AFTER CHAT COMPLETION", request)
         result = await self.process_chat_completion_with_scores(
             chat_completion_request, raw_request
         )
