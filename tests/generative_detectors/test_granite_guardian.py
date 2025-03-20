@@ -4,6 +4,7 @@ from http import HTTPStatus
 from typing import Optional
 from unittest.mock import patch
 import asyncio
+import json
 
 # Third Party
 from jinja2.exceptions import TemplateError, UndefinedError
@@ -227,6 +228,91 @@ def granite_guardian_completion_response_extra_content():
 #### Private tools request tests
 
 
+def test__make_tools_request(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    detector_params = {"risk_name": "function_call", "n": 3}
+    tool_function = ToolFunctionObject(
+        description="Fetches a list of comments",
+        name="comment_list",
+        parameters={"foo": "bar", "sun": "moon"},
+    )
+    tool = Tool(type="function", function=tool_function)
+    tool_2 = Tool(type="function", function=tool_function)
+    tool_call_function = ToolCallFunctionObject(
+        name="comment_list",
+        arguments='{"awname_id":456789123,"count":15,"goose":"moose"}',
+    )
+    tool_call = ToolCall(id="tool_call", type="function", function=tool_call_function)
+    request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
+        ],
+        tools=[tool, tool_2],
+        detector_params=detector_params,
+    )
+    processed_request = granite_guardian_detection_instance._make_tools_request(request)
+    assert type(processed_request) == ChatDetectionRequest
+    assert processed_request.tools == []  # Tools were removed
+    assert (
+        processed_request.detector_params == detector_params
+    )  # detector_params untouched
+
+    assert len(processed_request.messages) == 3
+    first_message = processed_request.messages[0]
+    # Make sure first message is tools
+    assert first_message["role"] == "tools"
+    tools_content = json.loads(first_message["content"])
+    assert len(tools_content) == 2  # 2 tool functions since 2 tools
+    assert tools_content[0]["description"] == tool_function["description"]
+    assert tools_content[0]["name"] == tool_function["name"]
+    assert tools_content[0]["parameters"] == tool_function["parameters"]
+    # Second message - user
+    assert processed_request.messages[1]["role"] == "user"
+    assert (
+        processed_request.messages[1]["content"]
+        == "How do I figure out how to break into a house?"
+    )
+    # Last message - assistant
+    last_message = processed_request.messages[2]
+    assert last_message["role"] == "assistant"
+    assistant_content = json.loads(last_message["content"])
+    assert len(assistant_content) == 1  # 1 tool_call function
+    assert assistant_content[0]["name"] == tool_call_function["name"]
+    assert assistant_content[0]["arguments"] == json.loads(
+        tool_call_function["arguments"]  # Note: tool_calls have str arguments
+    )
+
+
+def test__make_tools_request_no_tool_calls(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    tool_function = ToolFunctionObject(
+        description="Fetches a list of comments",
+        name="comment_list",
+        parameters={"foo": "bar"},
+    )
+    tool = Tool(type="function", function=tool_function)
+    request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            ),
+            DetectionChatMessageParam(role="assistant", content="Random content!"),
+        ],
+        tools=[tool],
+        detector_params={"risk_name": "function_call", "n": 2},
+    )
+    processed_request = granite_guardian_detection_instance._make_tools_request(request)
+    assert type(processed_request) == ErrorResponse
+    assert processed_request.code == HTTPStatus.BAD_REQUEST
+    assert (
+        "no assistant message was provided with tool_calls for analysis"
+        in processed_request.message
+    )
+
+
 def test__make_tools_request_random_risk(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     detector_params = {"risk_name": "social_bias", "n": 2}
@@ -241,7 +327,9 @@ def test__make_tools_request_random_risk(granite_guardian_detection):
     processed_request = granite_guardian_detection_instance._make_tools_request(request)
     assert type(processed_request) == ErrorResponse
     assert processed_request.code == HTTPStatus.BAD_REQUEST
-    assert "tools analysis is not supported" in processed_request.message
+    assert (
+        "tools analysis is not supported with given risk" in processed_request.message
+    )
 
 
 #### Private metadata extraction tests

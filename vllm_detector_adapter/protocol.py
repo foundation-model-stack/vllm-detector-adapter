@@ -1,6 +1,6 @@
 # Standard
 from http import HTTPStatus
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 # Third Party
 from pydantic import BaseModel, Field, RootModel, ValidationError

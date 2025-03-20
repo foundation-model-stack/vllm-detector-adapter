@@ -137,7 +137,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         user_message = None
         for i, message in enumerate(request.messages):
             assistant_tool_call_functions = []
-            if message["role"] == "assistant" and message["tool_calls"]:
+            if (
+                message["role"] == "assistant"
+                and "tool_calls" in message
+                and message["tool_calls"]
+            ):
                 for tool_call in message["tool_calls"]:
                     tool_call_function = tool_call["function"]
                     # OpenAI stores function arguments as a str, but
@@ -165,14 +169,14 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # Error if no assistant message was found
         if not assistant_message or not assistant_message["content"]:
             return ErrorResponse(
-                message="No assistant message was provided with tool_calls for analysis",
+                message="no assistant message was provided with tool_calls for analysis",
                 type="BadRequestError",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
         # Error if no user message was found
         if not user_message or not user_message["content"]:
             return ErrorResponse(
-                message="No user message was provided with content for analysis",
+                message="no user message was provided with content for analysis",
                 type="BadRequestError",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
