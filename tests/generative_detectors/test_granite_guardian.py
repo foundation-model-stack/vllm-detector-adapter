@@ -911,6 +911,40 @@ def test_chat_detection_with_tools(
         assert len(detections) == 2  # 2 choices
 
 
+def test_chat_detection_with_tools_wrong_risk(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    tool_function = ToolFunctionObject(
+        description="Fetches a list of comments",
+        name="comment_list",
+        parameters={"foo": "bar"},
+    )
+    tool = Tool(type="function", function=tool_function)
+    tool_call_function = ToolCallFunctionObject(
+        name="comment_list", arguments='{"awname_id":456789123,"count":15}'
+    )
+    tool_call = ToolCall(id="tool_call", type="function", function=tool_call_function)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
+        ],
+        tools=[tool],
+        detector_params={},
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == ErrorResponse
+
+
 #### Base class functionality tests
 
 # NOTE: currently these functions are basically just the base implementations,
