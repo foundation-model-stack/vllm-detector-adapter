@@ -46,6 +46,20 @@ BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 CONTENT = "Where do I find geese?"
 CONTEXT_DOC = "Geese can be found in lakes, ponds, and rivers"
 
+# Tool and tool call functions
+TOOL_FUNCTION = ToolFunctionObject(
+    description="Fetches a list of comments",
+    name="comment_list",
+    parameters={"foo": "bar", "sun": "moon"},
+)
+TOOL_CALL_FUNCTION = ToolCallFunctionObject(
+    name="comment_list",
+    arguments='{"awname_id":456789123,"count":15,"goose":"moose"}',
+)
+TOOL = Tool(type="function", function=TOOL_FUNCTION)
+TOOL_CALL = ToolCall(id="tool_call", type="function", function=TOOL_CALL_FUNCTION)
+USER_CONTENT_TOOLS = "Fetch the first 15 comments for the video with ID 456789123"
+
 
 @dataclass
 class MockTokenizer:
@@ -231,27 +245,16 @@ def granite_guardian_completion_response_extra_content():
 def test__make_tools_request(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     detector_params = {"risk_name": "function_call", "n": 3}
-    tool_function = ToolFunctionObject(
-        description="Fetches a list of comments",
-        name="comment_list",
-        parameters={"foo": "bar", "sun": "moon"},
-    )
-    tool = Tool(type="function", function=tool_function)
-    tool_2 = Tool(type="function", function=tool_function)
-    tool_call_function = ToolCallFunctionObject(
-        name="comment_list",
-        arguments='{"awname_id":456789123,"count":15,"goose":"moose"}',
-    )
-    tool_call = ToolCall(id="tool_call", type="function", function=tool_call_function)
+    tool_2 = Tool(type="function", function=TOOL_FUNCTION)
     request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
                 role="user",
-                content="Fetch the first 15 comments for the video with ID 456789123",
+                content=USER_CONTENT_TOOLS,
             ),
-            DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
         ],
-        tools=[tool, tool_2],
+        tools=[TOOL, tool_2],
         detector_params=detector_params,
     )
     processed_request = granite_guardian_detection_instance._make_tools_request(request)
@@ -267,9 +270,9 @@ def test__make_tools_request(granite_guardian_detection):
     assert first_message["role"] == "tools"
     tools_content = json.loads(first_message["content"])
     assert len(tools_content) == 2  # 2 tool functions since 2 tools
-    assert tools_content[0]["description"] == tool_function["description"]
-    assert tools_content[0]["name"] == tool_function["name"]
-    assert tools_content[0]["parameters"] == tool_function["parameters"]
+    assert tools_content[0]["description"] == TOOL_FUNCTION["description"]
+    assert tools_content[0]["name"] == TOOL_FUNCTION["name"]
+    assert tools_content[0]["parameters"] == TOOL_FUNCTION["parameters"]
     # Second message - user
     assert processed_request.messages[1]["role"] == "user"
     assert (
@@ -281,29 +284,23 @@ def test__make_tools_request(granite_guardian_detection):
     assert last_message["role"] == "assistant"
     assistant_content = json.loads(last_message["content"])
     assert len(assistant_content) == 1  # 1 tool_call function
-    assert assistant_content[0]["name"] == tool_call_function["name"]
+    assert assistant_content[0]["name"] == TOOL_CALL_FUNCTION["name"]
     assert assistant_content[0]["arguments"] == json.loads(
-        tool_call_function["arguments"]  # Note: tool_calls have str arguments
-    )
+        TOOL_CALL_FUNCTION["arguments"]
+    )  # Note: tool_calls in the OpenAI API have str arguments
 
 
 def test__make_tools_request_no_tool_calls(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    tool_function = ToolFunctionObject(
-        description="Fetches a list of comments",
-        name="comment_list",
-        parameters={"foo": "bar"},
-    )
-    tool = Tool(type="function", function=tool_function)
     request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
                 role="user",
-                content="Fetch the first 15 comments for the video with ID 456789123",
+                content=USER_CONTENT_TOOLS,
             ),
             DetectionChatMessageParam(role="assistant", content="Random content!"),
         ],
-        tools=[tool],
+        tools=[TOOL],
         detector_params={"risk_name": "function_call", "n": 2},
     )
     processed_request = granite_guardian_detection_instance._make_tools_request(request)
@@ -322,9 +319,11 @@ def test__make_tools_request_random_risk(granite_guardian_detection):
         messages=[
             DetectionChatMessageParam(
                 role="user",
-                content="Fetch the first 15 comments for the video with ID 456789123",
-            )
+                content=USER_CONTENT_TOOLS,
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
         ],
+        tools=[TOOL],
         detector_params=detector_params,
     )
     processed_request = granite_guardian_detection_instance._make_tools_request(request)
@@ -882,25 +881,15 @@ def test_chat_detection_with_tools(
     granite_guardian_detection, granite_guardian_completion_response
 ):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    tool_function = ToolFunctionObject(
-        description="Fetches a list of comments",
-        name="comment_list",
-        parameters={"foo": "bar"},
-    )
-    tool = Tool(type="function", function=tool_function)
-    tool_call_function = ToolCallFunctionObject(
-        name="comment_list", arguments='{"awname_id":456789123,"count":15}'
-    )
-    tool_call = ToolCall(id="tool_call", type="function", function=tool_call_function)
     chat_request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
                 role="user",
-                content="Fetch the first 15 comments for the video with ID 456789123",
+                content=USER_CONTENT_TOOLS,
             ),
-            DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
         ],
-        tools=[tool],
+        tools=[TOOL],
         detector_params={"risk_name": "function_call", "n": 2},
     )
     with patch(
@@ -919,25 +908,15 @@ def test_chat_detection_with_tools_wrong_risk(
     granite_guardian_detection, granite_guardian_completion_response
 ):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-    tool_function = ToolFunctionObject(
-        description="Fetches a list of comments",
-        name="comment_list",
-        parameters={"foo": "bar"},
-    )
-    tool = Tool(type="function", function=tool_function)
-    tool_call_function = ToolCallFunctionObject(
-        name="comment_list", arguments='{"awname_id":456789123,"count":15}'
-    )
-    tool_call = ToolCall(id="tool_call", type="function", function=tool_call_function)
     chat_request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
                 role="user",
-                content="Fetch the first 15 comments for the video with ID 456789123",
+                content=USER_CONTENT_TOOLS,
             ),
-            DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
         ],
-        tools=[tool],
+        tools=[TOOL],
         detector_params={},
     )
     with patch(

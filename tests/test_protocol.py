@@ -67,9 +67,9 @@ def test_chat_detection_to_completion_request_unknown_params():
 
 
 def test_chat_detection_no_content():
-    # The message is legitimate since for the OpenAI AI, content is not required if
-    # tool_calls exist, but for chat requests to models, we are expecting content
-    # to exist after any pre-processing
+    # The message is legitimate since for the OpenAI API, content is not required if
+    # tool_calls exist, but for chat requests to models supported in the adapter,
+    # we are expecting content to exist after any pre-processing at this time
     tool_call_function = ToolCallFunctionObject(
         name="comment_list",
         arguments='{"awname_id":456789123,"count":15,"goose":"moose"}',
