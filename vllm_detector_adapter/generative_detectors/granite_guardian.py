@@ -115,14 +115,14 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Convert original chat detection request to Granite Guardian-compatible request with
-        tools, assistant, and user messages"""
+        tools, user, and assistant messages."""
 
         if (
             "risk_name" not in request.detector_params
             or request.detector_params["risk_name"] not in self.TOOLS_RISKS
         ):
-            # Provide error here, since otherwise tools message and assistant message
-            # flattening will not be applicable
+            # Provide error here, since otherwise follow-on tools message
+            # and assistant message flattening will not be applicable
             return ErrorResponse(
                 message="tools analysis is not supported with given risk",
                 type="BadRequestError",
@@ -135,6 +135,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         assistant_message = None
         user_message_idxs = []
         user_message = None
+        # NOTE: Guardian models expect json to be serialized and indented
         for i, message in enumerate(request.messages):
             assistant_tool_call_functions = []
             if (
@@ -201,9 +202,12 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         )
 
         # Replace request portions
-        # `tools` should not be putting on the chat completions request currently but we
-        # do not pass them on anyway, in case they could affect the completion generation
+        # `tools` should not be passed onto the chat completions request currently, but we
+        # do not pass them on here anyway, in case the chat completion request processing
+        # behavior changes, this could affect the completion generation.
         request.tools = []
+        # `tools` and `user` messages are more interchangeable order-wise but the assistant
+        # message needs to be last.
         request.messages = [tools_message, user_message, assistant_message]
 
         return request
