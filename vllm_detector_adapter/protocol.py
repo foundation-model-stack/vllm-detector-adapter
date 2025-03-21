@@ -191,20 +191,22 @@ class Tool(TypedDict):
 
 class ChatDetectionRequest(BaseModel):
     # Chat messages
-    messages: list[DetectionChatMessageParam] = Field(
+    messages: List[DetectionChatMessageParam] = Field(
         examples=[
-            DetectionChatMessageParam(
-                role="user", content="Hi is this conversation guarded"
-            ),
-            DetectionChatMessageParam(role="assistant", content="Yes, it is"),
+            [
+                DetectionChatMessageParam(
+                    role="user", content="Hi is this conversation guarded"
+                ),
+                DetectionChatMessageParam(role="assistant", content="Yes, it is"),
+            ]
         ]
     )
 
     # Optional list of tools definitions to provide for evaluation during detection
-    tools: Optional[list[Tool]] = []
+    tools: Optional[List[Tool]] = []
 
     # Parameters to pass through to chat completions, optional
-    detector_params: Optional[dict] = {}
+    detector_params: Optional[Dict] = {}
 
     def to_chat_completion_request(self, model_name: str):
         """Function to convert [fms] chat detection request to openai chat completion request"""
