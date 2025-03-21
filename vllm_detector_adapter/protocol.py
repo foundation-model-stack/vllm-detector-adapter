@@ -160,7 +160,7 @@ class ToolCall(TypedDict):
 class DetectionChatMessageParam(TypedDict):
     # The role of the message's author
     role: Required[str]
-    # Optional content of the message
+    # Content of the message,
     content: NotRequired[str]
     # Optional generated tool calls, including function calls,
     # to be evaluated against other message content and/or tools
@@ -191,7 +191,7 @@ class Tool(TypedDict):
 
 class ChatDetectionRequest(BaseModel):
     # Chat messages
-    messages: List[DetectionChatMessageParam] = Field(
+    messages: list[DetectionChatMessageParam] = Field(
         examples=[
             DetectionChatMessageParam(
                 role="user", content="Hi is this conversation guarded"
@@ -201,10 +201,10 @@ class ChatDetectionRequest(BaseModel):
     )
 
     # Optional list of tools definitions to provide for evaluation during detection
-    tools: Optional[List[Tool]] = []
+    tools: Optional[list[Tool]] = []
 
     # Parameters to pass through to chat completions, optional
-    detector_params: Optional[Dict] = {}
+    detector_params: Optional[dict] = {}
 
     def to_chat_completion_request(self, model_name: str):
         """Function to convert [fms] chat detection request to openai chat completion request"""
@@ -212,10 +212,18 @@ class ChatDetectionRequest(BaseModel):
         # completion request. `tools` here are not meant to be
         # called directly by the detection model, but used specifically
         # in evaluation against messages in the request.
-        messages = [
-            {"role": message["role"], "content": message["content"]}
-            for message in self.messages
-        ]
+        messages = []
+        for message in self.messages:
+            # OpenAI messages do not require content if other fields like tool_calls
+            # exist, but after pre-processing, here we still expect requests to have
+            # content
+            if "content" not in message:
+                return ErrorResponse(
+                    message="message missing content",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
+            messages.append({"role": message["role"], "content": message["content"]})
 
         # Try to pass all detector_params through as additional parameters to chat completions.
         # We do not try to provide validation or changing of parameters here to not be dependent
