@@ -246,7 +246,8 @@ def test__make_tools_request(granite_guardian_detection):
     request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
-                role="user", content="How do I figure out how to break into a house?"
+                role="user",
+                content="Fetch the first 15 comments for the video with ID 456789123",
             ),
             DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
         ],
@@ -273,7 +274,7 @@ def test__make_tools_request(granite_guardian_detection):
     assert processed_request.messages[1]["role"] == "user"
     assert (
         processed_request.messages[1]["content"]
-        == "How do I figure out how to break into a house?"
+        == "Fetch the first 15 comments for the video with ID 456789123"
     )
     # Last message - assistant
     last_message = processed_request.messages[2]
@@ -297,7 +298,8 @@ def test__make_tools_request_no_tool_calls(granite_guardian_detection):
     request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
-                role="user", content="How do I figure out how to break into a house?"
+                role="user",
+                content="Fetch the first 15 comments for the video with ID 456789123",
             ),
             DetectionChatMessageParam(role="assistant", content="Random content!"),
         ],
@@ -319,7 +321,8 @@ def test__make_tools_request_random_risk(granite_guardian_detection):
     request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
-                role="user", content="How do I figure out how to break into a house?"
+                role="user",
+                content="Fetch the first 15 comments for the video with ID 456789123",
             )
         ],
         detector_params=detector_params,
@@ -892,7 +895,8 @@ def test_chat_detection_with_tools(
     chat_request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
-                role="user", content="How do I figure out how to break into a house?"
+                role="user",
+                content="Fetch the first 15 comments for the video with ID 456789123",
             ),
             DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
         ],
@@ -928,7 +932,8 @@ def test_chat_detection_with_tools_wrong_risk(
     chat_request = ChatDetectionRequest(
         messages=[
             DetectionChatMessageParam(
-                role="user", content="How do I figure out how to break into a house?"
+                role="user",
+                content="Fetch the first 15 comments for the video with ID 456789123",
             ),
             DetectionChatMessageParam(role="assistant", tool_calls=[tool_call]),
         ],
