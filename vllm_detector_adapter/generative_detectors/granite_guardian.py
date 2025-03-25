@@ -219,9 +219,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         )
 
         # Replace request portions
-        # `tools` should not be passed onto the chat completions request currently, but we
-        # do not pass them on here anyway, in case the chat completion request processing
-        # behavior changes, this could affect the completion generation.
+        # We do not pass on `tools` to the chat completions request, since they are
+        # not meant to be used as part of the chat completions request and could affect
+        # request processing behavior. Currently the common code called after this
+        # function already does not pass on `tools`, but in case logic changes there,
+        # this function already ensures that the `tools` are removed.
         request.tools = []
         # `tools` and `user` messages are more interchangeable order-wise for the request
         # to the model, but the assistant message needs to be last.
