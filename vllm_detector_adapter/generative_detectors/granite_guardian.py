@@ -1,7 +1,6 @@
 # Standard
 from http import HTTPStatus
 from typing import Dict, List, Optional, Tuple, Union
-import json
 import re
 
 # Third Party
@@ -13,6 +12,7 @@ from vllm.entrypoints.openai.protocol import (
     ChatCompletionResponse,
     ErrorResponse,
 )
+import orjson
 
 # Local
 from vllm_detector_adapter.detector_dispatcher import detector_dispatcher
@@ -58,7 +58,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     # Risk(s) associated with tools
     TOOLS_RISKS = ["function_call"]
     # Indent level needed for Granite Guardian analysis
-    INDENT = 2
+    INDENT = orjson.OPT_INDENT_2
 
     # Risk Bank name defined in the chat template
     RISK_BANK_VAR_NAME = "risk_bank"
@@ -160,14 +160,14 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                     # We still convert so that there is no unexpected behavior
                     # when all the functions are converted to json string
                     # with indentation
-                    arg_dict = json.loads(tool_call_function["arguments"])
+                    arg_dict = orjson.loads(tool_call_function["arguments"])
                     new_tool_call_function = GraniteGuardianToolCallFunctionObject(
                         name=tool_call_function["name"], arguments=arg_dict
                     )
                     assistant_tool_call_functions.append(new_tool_call_function)
-                assistant_content_string = json.dumps(
-                    assistant_tool_call_functions, indent=self.INDENT
-                )
+                assistant_content_string = orjson.dumps(
+                    assistant_tool_call_functions, option=self.INDENT
+                ).decode()
                 assistant_message = DetectionChatMessageParam(
                     role=message["role"], content=assistant_content_string
                 )
@@ -211,7 +211,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         tools_functions = []
         for tools in request.tools:
             tools_functions.append(tools["function"])
-        tools_content_string = json.dumps(tools_functions, indent=self.INDENT)
+        tools_content_string = orjson.dumps(
+            tools_functions, option=self.INDENT
+        ).decode()
         tools_message = DetectionChatMessageParam(
             role="tools", content=tools_content_string
         )
