@@ -115,7 +115,17 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         self, request: ChatDetectionRequest
     ) -> Union[ChatDetectionRequest, ErrorResponse]:
         """Convert original chat detection request to Granite Guardian-compatible request with
-        tools, user, and assistant messages."""
+        assistant, user, and tools messages.
+
+        This function focuses on processing each of the 3 types of messages, which are also
+        enumerated below in the comments:
+        (1) Assistant message - contains function calls (function(s) in tool_calls generally
+        from an LLM response. These are to be analyzed for risk based on the tool definitions
+        in the tools message and the user query. Functions here are referred to as tool_call_function(s)
+        (2) User message - a user query, generally passed through as is
+        (3) Tools message - contains tools definitions, as a list of functions. Functions here
+        are referred to as tool_function(s)
+        """
 
         if (
             "risk_name" not in request.detector_params
@@ -129,11 +139,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 code=HTTPStatus.BAD_REQUEST.value,
             )
 
-        # 'Flatten' the assistant message, extracting the tool_calls functions
-        # Also check for user messages
-        assistant_message_idxs = []
+        # (1) 'Flatten' the assistant message, extracting the functions in the tool_calls
+        # portion of the message
+        assistant_message_count = 0
         assistant_message = None
-        user_message_idxs = []
+        user_message_count = 0
         user_message = None
         # NOTE: Guardian models expect json to be serialized and indented
         for i, message in enumerate(request.messages):
@@ -161,11 +171,12 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 assistant_message = DetectionChatMessageParam(
                     role=message["role"], content=assistant_content_string
                 )
-                assistant_message_idxs.append(i)
+                assistant_message_count += 1
 
+            # (2) User messages are just passed through
             if message["role"] == "user":
                 user_message = message
-                user_message_idxs.append(i)
+                user_message_count += 1
 
         # Error if no assistant message was found
         if not assistant_message or not assistant_message["content"]:
@@ -182,17 +193,21 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 code=HTTPStatus.BAD_REQUEST.value,
             )
         # Warning if multiple assistant messages were found
-        if len(assistant_message_idxs) > 1:
+        if assistant_message_count > 1:
             logger.warning(
                 "More than one assistant message with tool_calls was provided. Only the last will be used for analysis with tools."
             )
         # Warning if multiple user messages were found
-        if len(user_message_idxs) > 1:
+        if user_message_count > 1:
             logger.warning(
                 "More than one user message was provided. Only the last will be used for analysis with tools."
             )
 
-        # Provide the inner tools functions as a message with role: tools
+        # 'tools' ref https://platform.openai.com/docs/api-reference/chat/create#chat-create-tools
+        # are provided on the same level as 'messages' on the user request to this
+        # adapter. 'tools' are generally a list of tools the model may call. In the Granite
+        # Guardian context, these are the definition of tools to be used for analysis.
+        # (3) Provide the inner tools functions as a message with role: tools
         tools_functions = []
         for tools in request.tools:
             tools_functions.append(tools["function"])
@@ -206,8 +221,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # do not pass them on here anyway, in case the chat completion request processing
         # behavior changes, this could affect the completion generation.
         request.tools = []
-        # `tools` and `user` messages are more interchangeable order-wise but the assistant
-        # message needs to be last.
+        # `tools` and `user` messages are more interchangeable order-wise for the request
+        # to the model, but the assistant message needs to be last.
         request.messages = [tools_message, user_message, assistant_message]
 
         return request
