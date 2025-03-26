@@ -146,11 +146,29 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         """Apply task template on the chat request"""
         return request
 
-    @detector_dispatcher(types=[DetectorType.TEXT_CHAT, DetectorType.TEXT_GENERATION])
+    @detector_dispatcher(types=[DetectorType.TEXT_CHAT])
     def preprocess_request(  # noqa: F811
-        self, request: Union[ChatDetectionRequest, GenerationDetectionRequest]
-    ) -> Union[ChatDetectionRequest, GenerationDetectionRequest, ErrorResponse]:
-        """Preprocess chat request or generation detection request"""
+        self, request: ChatDetectionRequest
+    ) -> Union[ChatDetectionRequest, ErrorResponse]:
+        """Preprocess chat request"""
+        # pylint: disable=redefined-outer-name
+
+        # Tools detection is not generalized
+        if request.tools:
+            return ErrorResponse(
+                message="tools are not supported for the detector",
+                type="NotImplementedError",
+                code=HTTPStatus.NOT_IMPLEMENTED.value,
+            )
+        return request
+
+    ##### Generation request processing functions ####################################
+
+    @detector_dispatcher(types=[DetectorType.TEXT_GENERATION])
+    def preprocess_request(  # noqa: F811
+        self, request: GenerationDetectionRequest
+    ) -> Union[GenerationDetectionRequest, ErrorResponse]:
+        """Preprocess generation detection request"""
         # pylint: disable=redefined-outer-name
         return request
 
@@ -319,6 +337,8 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
 
         # Optionally make model-dependent adjustments for the request
         request = self.preprocess_request(request, fn_type=DetectorType.TEXT_CHAT)
+        if isinstance(request, ErrorResponse):
+            return request
 
         chat_completion_request = request.to_chat_completion_request(model_name)
         if isinstance(chat_completion_request, ErrorResponse):

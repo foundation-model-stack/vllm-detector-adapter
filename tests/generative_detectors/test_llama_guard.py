@@ -31,6 +31,8 @@ from vllm_detector_adapter.protocol import (
     DetectionChatMessageParam,
     DetectionResponse,
     GenerationDetectionRequest,
+    Tool,
+    ToolFunctionObject,
 )
 
 MODEL_NAME = "meta-llama/Llama-Guard-3-8B"  # Example llama guard model
@@ -350,6 +352,30 @@ def test_chat_detection(llama_guard_detection, llama_guard_completion_response):
         assert detection_0["detection_type"] == "risk"
         assert pytest.approx(detection_0["score"]) == 0.001346767
         assert detection_0["metadata"] == {}
+
+
+def test_chat_detection_with_tools(llama_guard_detection):
+    llama_guard_detection_instance = asyncio.run(llama_guard_detection)
+    tool_function = ToolFunctionObject(
+        description="Fetches a list of comments",
+        name="comment_list",
+        parameters={"foo": "bar"},
+    )
+    tool = Tool(type="function", function=tool_function)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I search for moose?"
+            ),
+            DetectionChatMessageParam(
+                role="assistant", content="You could go to Canada"
+            ),
+        ],
+        tools=[tool],
+    )
+    response = asyncio.run(llama_guard_detection_instance.chat(chat_request))
+    assert type(response) == ErrorResponse
+    assert response.code == HTTPStatus.NOT_IMPLEMENTED
 
 
 def test_context_analyze(llama_guard_detection):

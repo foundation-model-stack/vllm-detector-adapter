@@ -4,6 +4,7 @@ from http import HTTPStatus
 from typing import Optional
 from unittest.mock import patch
 import asyncio
+import json
 
 # Third Party
 from jinja2.exceptions import TemplateError, UndefinedError
@@ -31,6 +32,10 @@ from vllm_detector_adapter.protocol import (
     DetectionChatMessageParam,
     DetectionResponse,
     GenerationDetectionRequest,
+    Tool,
+    ToolCall,
+    ToolCallFunctionObject,
+    ToolFunctionObject,
 )
 from vllm_detector_adapter.utils import DetectorType
 
@@ -40,6 +45,20 @@ BASE_MODEL_PATHS = [BaseModelPath(name=MODEL_NAME, model_path=MODEL_NAME)]
 
 CONTENT = "Where do I find geese?"
 CONTEXT_DOC = "Geese can be found in lakes, ponds, and rivers"
+
+# Tool and tool call functions
+TOOL_FUNCTION = ToolFunctionObject(
+    description="Fetches a list of comments",
+    name="comment_list",
+    parameters={"foo": "bar", "sun": "moon"},
+)
+TOOL_CALL_FUNCTION = ToolCallFunctionObject(
+    name="comment_list",
+    arguments='{"awname_id":456789123,"count":15,"goose":"moose"}',
+)
+TOOL = Tool(type="function", function=TOOL_FUNCTION)
+TOOL_CALL = ToolCall(id="tool_call", type="function", function=TOOL_CALL_FUNCTION)
+USER_CONTENT_TOOLS = "Fetch the first 15 comments for the video with ID 456789123"
 
 
 @dataclass
@@ -219,6 +238,101 @@ def granite_guardian_completion_response_extra_content():
 
 
 ### Tests #####################################################################
+
+#### Private tools request tests
+
+
+def test__make_tools_request(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    detector_params = {"risk_name": "function_call", "n": 3}
+    tool_2 = Tool(type="function", function=TOOL_FUNCTION)
+    request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user",
+                content=USER_CONTENT_TOOLS,
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
+        ],
+        tools=[TOOL, tool_2],
+        detector_params=detector_params,
+    )
+    processed_request = granite_guardian_detection_instance._make_tools_request(request)
+    assert type(processed_request) == ChatDetectionRequest
+    assert processed_request.tools == []  # Tools were removed
+    assert (
+        processed_request.detector_params == detector_params
+    )  # detector_params untouched
+
+    assert len(processed_request.messages) == 3
+    first_message = processed_request.messages[0]
+    # Make sure first message is tools
+    assert first_message["role"] == "tools"
+    tools_content = json.loads(first_message["content"])
+    assert len(tools_content) == 2  # 2 tool functions since 2 tools
+    assert tools_content[0]["description"] == TOOL_FUNCTION["description"]
+    assert tools_content[0]["name"] == TOOL_FUNCTION["name"]
+    assert tools_content[0]["parameters"] == TOOL_FUNCTION["parameters"]
+    # Second message - user
+    assert processed_request.messages[1]["role"] == "user"
+    assert (
+        processed_request.messages[1]["content"]
+        == "Fetch the first 15 comments for the video with ID 456789123"
+    )
+    # Last message - assistant
+    last_message = processed_request.messages[2]
+    assert last_message["role"] == "assistant"
+    assistant_content = json.loads(last_message["content"])
+    assert len(assistant_content) == 1  # 1 tool_call function
+    assert assistant_content[0]["name"] == TOOL_CALL_FUNCTION["name"]
+    assert assistant_content[0]["arguments"] == json.loads(
+        TOOL_CALL_FUNCTION["arguments"]
+    )  # Note: tool_calls in the OpenAI API have str arguments
+
+
+def test__make_tools_request_no_tool_calls(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user",
+                content=USER_CONTENT_TOOLS,
+            ),
+            DetectionChatMessageParam(role="assistant", content="Random content!"),
+        ],
+        tools=[TOOL],
+        detector_params={"risk_name": "function_call", "n": 2},
+    )
+    processed_request = granite_guardian_detection_instance._make_tools_request(request)
+    assert type(processed_request) == ErrorResponse
+    assert processed_request.code == HTTPStatus.BAD_REQUEST
+    assert (
+        "no assistant message was provided with tool_calls for analysis"
+        in processed_request.message
+    )
+
+
+def test__make_tools_request_random_risk(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    detector_params = {"risk_name": "social_bias", "n": 2}
+    request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user",
+                content=USER_CONTENT_TOOLS,
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
+        ],
+        tools=[TOOL],
+        detector_params=detector_params,
+    )
+    processed_request = granite_guardian_detection_instance._make_tools_request(request)
+    assert type(processed_request) == ErrorResponse
+    assert processed_request.code == HTTPStatus.BAD_REQUEST
+    assert (
+        "tools analysis is not supported with given risk" in processed_request.message
+    )
+
 
 #### Private metadata extraction tests
 
@@ -488,7 +602,7 @@ def test_post_process_completion_no_metadata(
     # Older Granite Guardian versions do not provide info like confidence
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     dummy_scores = [0.2, 0.2]
-    (chat_completion_response, scores, _, metadata_list) = asyncio.run(
+    (chat_completion_response, _, _, metadata_list) = asyncio.run(
         granite_guardian_detection_instance.post_process_completion_results(
             granite_guardian_completion_response, dummy_scores, "risk"
         )
@@ -508,7 +622,7 @@ def test_post_process_completion_with_confidence(
     # Starting Granite Guardian 3.2, info like confidence is provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     dummy_scores = [0.2, 0.2]
-    (chat_completion_response, scores, _, metadata_list) = asyncio.run(
+    (chat_completion_response, _, _, metadata_list) = asyncio.run(
         granite_guardian_detection_instance.post_process_completion_results(
             granite_guardian_completion_response_extra_content, dummy_scores, "risk"
         )
@@ -761,6 +875,58 @@ def test_chat_detection_with_confidence(
         assert detection_1["detection_type"] == "risk"
         assert pytest.approx(detection_1["score"]) == 0.9377647
         assert detection_1["metadata"] == {"confidence": "Low"}
+
+
+def test_chat_detection_with_tools(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user",
+                content=USER_CONTENT_TOOLS,
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
+        ],
+        tools=[TOOL],
+        detector_params={"risk_name": "function_call", "n": 2},
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+
+
+def test_chat_detection_with_tools_wrong_risk(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user",
+                content=USER_CONTENT_TOOLS,
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
+        ],
+        tools=[TOOL],
+        detector_params={},
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == ErrorResponse
 
 
 #### Base class functionality tests

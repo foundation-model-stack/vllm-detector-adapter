@@ -19,6 +19,8 @@ from vllm_detector_adapter.protocol import (
     DetectionChatMessageParam,
     DetectionResponse,
     GenerationDetectionRequest,
+    ToolCall,
+    ToolCallFunctionObject,
 )
 
 MODEL_NAME = "org/model-name"
@@ -62,6 +64,23 @@ def test_chat_detection_to_completion_request_unknown_params():
     request = chat_request.to_chat_completion_request(MODEL_NAME)
     # As of vllm >= 0.6.5, extra fields are allowed
     assert type(request) == ChatCompletionRequest
+
+
+def test_chat_detection_no_content():
+    # The message is legitimate since for the OpenAI API, content is not required if
+    # tool_calls exist, but for chat requests to models supported in the adapter,
+    # we are expecting content to exist after any pre-processing at this time
+    tool_call_function = ToolCallFunctionObject(
+        name="comment_list",
+        arguments='{"awname_id":456789123,"count":15,"goose":"moose"}',
+    )
+    tool_call = ToolCall(id="tool_call", type="function", function=tool_call_function)
+    chat_request = ChatDetectionRequest(
+        messages=[DetectionChatMessageParam(role="assistant", tool_calls=[tool_call])],
+        detector_params={"moo": 2},
+    )
+    request = chat_request.to_chat_completion_request(MODEL_NAME)
+    assert type(request) == ErrorResponse
 
 
 #### Generation detection request tests
