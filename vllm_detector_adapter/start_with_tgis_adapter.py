@@ -116,7 +116,7 @@ async def start_servers(args: argparse.Namespace) -> None:
         vllm_server = await build_http_server(args, engine)
 
         http_server_task = loop.create_task(
-            run_http_server(args, engine),
+            run_http_server(args, engine, sock),
             name="http_server",
         )
         # The http server task will catch interrupt signals for us
