@@ -13,6 +13,7 @@ import argparse
 import asyncio
 import contextlib
 import importlib.util
+import inspect
 import os
 import traceback
 
@@ -24,6 +25,8 @@ from vllm.utils import FlexibleArgumentParser
 import uvloop
 
 if TYPE_CHECKING:
+    import socket
+
     from vllm.engine.async_llm_engine import AsyncLLMEngine
     from vllm.engine.protocol import AsyncEngineClient
 
@@ -47,6 +50,7 @@ if not importlib.util.find_spec(TGIS_ADAPTER_LIBRARY_NAME):
 else:
     # Third Party
     from vllm_tgis_adapter.grpc import run_grpc_server
+    from vllm_tgis_adapter.http import build_http_server
     from vllm_tgis_adapter.tgis_utils.args import (
         EnvVarArgumentParser,
         add_tgis_args,
@@ -60,6 +64,7 @@ else:
 async def run_http_server(
     args: argparse.Namespace,
     engine: AsyncLLMEngine | AsyncEngineClient,
+    sock: socket.socket | None = None,
     **uvicorn_kwargs,  # noqa: ANN003
 ) -> None:
     # modified copy of vllm.entrypoints.openai.api_server.run_server that
@@ -81,6 +86,10 @@ async def run_http_server(
     }
     serve_kwargs.update(uvicorn_kwargs)
 
+    # should only be used in versions of vllm >= 0.7.3
+    if "sock" in inspect.getfullargspec(serve_http).args:
+        serve_kwargs["sock"] = sock
+
     shutdown_coro = await serve_http(app, **serve_kwargs)
 
     # launcher.serve_http returns a shutdown coroutine to await
@@ -94,19 +103,27 @@ async def start_servers(args: argparse.Namespace) -> None:
     """
     loop = asyncio.get_running_loop()
 
+    # workaround to make sure that we bind the port before the engine is set up.
+    # This avoids race conditions with ray.
+    # see https://github.com/vllm-project/vllm/issues/8204
+    sock_addr = (args.host or "", args.port)
+    sock = api_server.create_server_socket(sock_addr)
+
     tasks: list[asyncio.Task] = []
     async with api_server.build_async_engine_client(args) as engine:
         add_logging_wrappers(engine)
 
+        vllm_server = await build_http_server(args, engine)
+
         http_server_task = loop.create_task(
-            run_http_server(args, engine),
+            run_http_server(args, engine, sock),
             name="http_server",
         )
         # The http server task will catch interrupt signals for us
         tasks.append(http_server_task)
 
         grpc_server_task = loop.create_task(
-            run_grpc_server(args, engine),
+            run_grpc_server(args, engine, vllm_server),
             name="grpc_server",
         )
         tasks.append(grpc_server_task)
