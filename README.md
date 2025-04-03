@@ -42,7 +42,7 @@ curl -X 'POST' \
 ## Running with TGIS adapter
 
 ```sh
-python -m vllm_detector_adapter.tgis_servers --model $MODEL_NAME --model-type granite_guardian
+python -m vllm_detector_adapter.start_with_tgis_adapter --model $MODEL_NAME --model-type granite_guardian
 ```
 
 **Example usage:**
