@@ -34,6 +34,7 @@ from vllm_detector_adapter.protocol import (
     DetectionResponse,
     GenerationDetectionRequest,
 )
+from vllm_detector_adapter.utils import LocalEnvVarArgumentParser
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 
@@ -314,8 +315,8 @@ if __name__ == "__main__":
     parser = FlexibleArgumentParser(
         description="vLLM OpenAI-Compatible RESTful API server."
     )
-    parser = make_arg_parser(parser)
-
+    # convert to our custom env var arg parser
+    parser = LocalEnvVarArgumentParser(parser=make_arg_parser(parser))
     # Add chat detection params
     parser = add_chat_detection_params(parser)
 
