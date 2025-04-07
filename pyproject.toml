@@ -22,7 +22,8 @@ vllm-tgis-adapter = [
 ]
 vllm = [
     "vllm @ git+https://github.com/vllm-project/vllm.git@v0.8.3 ; sys_platform == 'darwin'",
-    "vllm>=0.8.3,<0.8.4 ; sys_platform != 'darwin'",
+    # To accomodate for RCs like 0.8.3.0rc0
+    "vllm>0.8.2,<0.8.4 ; sys_platform != 'darwin'",
 ]
 
 ## Dev Extra Sets ##
