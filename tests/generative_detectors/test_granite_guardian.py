@@ -485,10 +485,10 @@ def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_det
     )
     assert type(chat_request) == ChatCompletionRequest
     assert len(chat_request.messages) == 2
-    assert chat_request.messages[0]["role"] == "user"
-    assert chat_request.messages[0]["content"] == CONTENT
-    assert chat_request.messages[1]["role"] == "context"
-    assert chat_request.messages[1]["content"] == "extra! " + CONTEXT_DOC
+    assert chat_request.messages[0]["role"] == "context"
+    assert chat_request.messages[0]["content"] == "extra! " + CONTEXT_DOC
+    assert chat_request.messages[1]["role"] == "user"
+    assert chat_request.messages[1]["content"] == CONTENT
     assert chat_request.model == MODEL_NAME
     # detector_paramas
     assert chat_request.n == 2
