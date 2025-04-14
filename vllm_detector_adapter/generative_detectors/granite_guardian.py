@@ -282,8 +282,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         elif risk_name in self.PROMPT_CONTEXT_ANALYSIS_RISKS:
             # Prompt analysis
             messages = [
-                {"role": "user", "content": content},
                 {"role": "context", "content": context_text},
+                {"role": "user", "content": content},
             ]
         else:
             # Return error if risk names are not expected ones
