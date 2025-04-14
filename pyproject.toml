@@ -1,6 +1,6 @@
 [project]
 name = "vllm-detector-adapter"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
   { name="Gaurav Kumbhat", email="kumbhat.gaurav@gmail.com" },
   { name="Evaline Ju", email="evaline.ju@ibm.com" },
@@ -18,13 +18,11 @@ dependencies = [
 
 [project.optional-dependencies]
 vllm-tgis-adapter = [
-    "vllm-tgis-adapter>=0.6.3,<0.6.4"
+    "vllm-tgis-adapter>=0.7.0,<0.7.1"
 ]
 vllm = [
-    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.7.3 ; sys_platform == 'darwin'",
-    # NOTE: Currently vllm-tgis-adapter doesn't support vLLM 0.8.2, otherwise, vllm-detector-adapter
-    # does work with higher version of vLLM
-    "vllm>=0.7.2,<0.7.4 ; sys_platform != 'darwin'",
+    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.8.2 ; sys_platform == 'darwin'",
+    "vllm>=0.7.2,<=0.8.2 ; sys_platform != 'darwin'",
 ]
 
 ## Dev Extra Sets ##
