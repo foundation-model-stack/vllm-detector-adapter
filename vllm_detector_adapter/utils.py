@@ -4,8 +4,7 @@ import argparse
 import os
 
 # Third Party
-from vllm.engine.arg_utils import StoreBoolean
-from vllm.utils import FlexibleArgumentParser
+from vllm.utils import FlexibleArgumentParser, StoreBoolean
 
 
 class DetectorType(Enum):
