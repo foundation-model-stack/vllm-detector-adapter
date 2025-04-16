@@ -342,13 +342,6 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # declared below for preprocessing TEXT_CHAT type detectors. This fails the validation inside
         # the detector_dispatcher decorator.
 
-        # If risk_name is not specifically provided for this endpoint, we will add a
-        # risk_name, since the user has already decided to use this particular endpoint
-        if "risk_name" not in request.detector_params:
-            request.detector_params[
-                "risk_name"
-            ] = self.DEFAULT_GENERATION_DETECTION_RISK
-
         # Task template not applied for generation analysis at this time
         # Make model-dependent adjustments for the request
         request = self.__preprocess(request)
