@@ -75,7 +75,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     def __preprocess(
         self,
         request: Union[
-            ChatDetectionRequest, ContextAnalysisRequest, GenerationDetectionRequest
+            ChatDetectionRequest, ContentsDetectionRequest, ContextAnalysisRequest, GenerationDetectionRequest
         ],
     ) -> Union[
         ChatDetectionRequest,
