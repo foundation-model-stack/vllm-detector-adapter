@@ -342,7 +342,6 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # declared below for preprocessing TEXT_CHAT type detectors. This fails the validation inside
         # the detector_dispatcher decorator.
 
-        # Task template not applied for generation analysis at this time
         # Make model-dependent adjustments for the request
         request = self.__preprocess(request)
 
