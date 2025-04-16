@@ -20,6 +20,7 @@ from vllm_detector_adapter.generative_detectors.base import ChatCompletionDetect
 from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
+    ContentsDetectionRequest,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
@@ -74,10 +75,14 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     def __preprocess(
         self,
         request: Union[
-            ChatDetectionRequest, ContextAnalysisRequest, GenerationDetectionRequest
+            ChatDetectionRequest,
+            ContentsDetectionRequest,
+            ContextAnalysisRequest,
+            GenerationDetectionRequest,
         ],
     ) -> Union[
         ChatDetectionRequest,
+        ContentsDetectionRequest,
         ContextAnalysisRequest,
         GenerationDetectionRequest,
         ErrorResponse,
@@ -333,14 +338,18 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     ##### General overriding request / response processing functions ##################
 
     @detector_dispatcher(types=[DetectorType.TEXT_CONTENT])
-    def preprocess_request(self, *args, **kwargs):
+    def preprocess_request(self, request, *args, **kwargs):
         # FIXME: This function declaration is temporary and should be removed once we fix following
         # issue with decorator:
         # ISSUE: Because of inheritance, the base class function with same name gets overriden by the function
         # declared below for preprocessing TEXT_CHAT type detectors. This fails the validation inside
         # the detector_dispatcher decorator.
+
+        # Make model-dependent adjustments for the request
+        request = self.__preprocess(request)
+
         return super().preprocess_request(
-            *args, **kwargs, fn_type=DetectorType.TEXT_CONTENT
+            request, *args, **kwargs, fn_type=DetectorType.TEXT_CONTENT
         )
 
     # Used detector_dispatcher decorator to allow for the same function to be called

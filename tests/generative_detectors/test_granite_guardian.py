@@ -28,6 +28,7 @@ import pytest_asyncio
 from vllm_detector_adapter.generative_detectors.granite_guardian import GraniteGuardian
 from vllm_detector_adapter.protocol import (
     ChatDetectionRequest,
+    ContentsDetectionRequest,
     ContextAnalysisRequest,
     DetectionChatMessageParam,
     DetectionResponse,
@@ -591,6 +592,42 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     assert (
         "risk_name foo is not compatible with context analysis" in chat_request.message
     )
+
+
+def test_preprocess_content_request_with_detector_params(granite_guardian_detection):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    # Make sure with addition of allowed params like risk_name and risk_definition,
+    # extra params do not get added to guardian_config
+    detector_params = {
+        "risk_name": "bias",
+        "risk_definition": "Find the bias!!",
+        "extra": "param",
+    }
+    initial_request = ContentsDetectionRequest(
+        contents=["Where do I find geese?", "You could go to Canada"],
+        detector_params=detector_params,
+    )
+    processed_requests = granite_guardian_detection_instance.preprocess_request(
+        initial_request, fn_type=DetectorType.TEXT_CONTENT
+    )
+    # Contents detector generates several requests per content
+    assert type(processed_requests) == list
+    assert len(processed_requests) == 2
+    processed_request = processed_requests[0]
+    assert type(processed_request) == ChatCompletionRequest
+    # Processed request should not have these extra params
+    assert not hasattr(processed_request, "risk_name")
+    assert not hasattr(processed_request, "risk_definition")
+    assert hasattr(processed_request, "chat_template_kwargs")
+    assert "guardian_config" in processed_request.chat_template_kwargs
+    guardian_config = processed_request.chat_template_kwargs["guardian_config"]
+    assert guardian_config == {
+        "risk_name": "bias",
+        "risk_definition": "Find the bias!!",
+    }
+    # other extra params should get added
+    assert hasattr(processed_request, "extra")
+    assert processed_request.extra == "param"
 
 
 #### Helper function post process tests
