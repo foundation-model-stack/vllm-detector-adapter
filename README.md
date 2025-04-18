@@ -38,6 +38,16 @@ curl -X 'POST' \
 1. `GRANITE_GUARDIAN` (default)
 1. `LLAMA_GUARD`
 
+## Edge Cases
+Some detector endpoints are not compatible with select versions of the supported model types. Below is a table showing which tested model family is not supported by the detector endpoints. 
+
+| Model            | /api/v1/text/contents | /api/v1/text/generation | /api/v1/text/chat | /api/v1/text/context/doc |
+|------------------|-----------------------|-------------------------|-------------------|--------------------------|
+| granite guardian | &check;               | &check;                 | &check;           | *                        |
+| llamba guard     | &check;               | &check;                 | &check;           | &cross;                  |
+
+\* granite guardian versions < 3.2 is not compatible with this endpoint 
+
 
 ## Running with TGIS adapter
 
