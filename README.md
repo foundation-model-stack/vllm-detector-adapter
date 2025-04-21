@@ -46,7 +46,7 @@ Some detector endpoints are not compatible with select versions of the supported
 | granite guardian | &check;               | &check;                 | &check;           | *                        |
 | llama guard     | &check;               | &check;                 | &check;           | &cross;                  |
 
-\* granite guardian versions < 3.2 is not compatible with this endpoint 
+\* granite guardian versions < 3.2 are not compatible with this endpoint 
 
 
 ## Running with TGIS adapter
