@@ -39,7 +39,7 @@ curl -X 'POST' \
 1. `LLAMA_GUARD`
 
 ## Edge Cases
-Some detector endpoints are not compatible with select versions of the supported model types. Below is a table showing which tested model family is not supported by the detector endpoints. 
+Some detector endpoints are not compatible with select versions of the supported model types. Below is a table showing which tested model types are/are not supported by the detector endpoints. 
 
 | Model type           | /api/v1/text/contents | /api/v1/text/generation | /api/v1/text/chat | /api/v1/text/context/doc |
 |------------------|-----------------------|-------------------------|-------------------|--------------------------|
