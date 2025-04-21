@@ -1,7 +1,7 @@
 # Standard
+from http import HTTPStatus
 from typing import Optional
 import asyncio
-from http import HTTPStatus
 
 # Third Party
 from fastapi import Request
