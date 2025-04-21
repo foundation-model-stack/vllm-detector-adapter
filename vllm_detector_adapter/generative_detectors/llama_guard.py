@@ -1,6 +1,7 @@
 # Standard
 from typing import Optional
 import asyncio
+from http import HTTPStatus
 
 # Third Party
 from fastapi import Request
@@ -133,6 +134,14 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 # Propagate any request problems that will not allow
                 # task template to be applied
                 return request
+
+        # Validate whether role_override was passed as a detector_param, which is invalid for llama guard.
+        if "role_override" in request.detector_params:
+            return ErrorResponse(
+                message="role_override is invalid detector parameter for llama guard",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
 
         # Since separate batch processing function doesn't exist at the time of writing,
         # we are just going to collect all the text from content request and fire up
