@@ -44,7 +44,7 @@ Some detector endpoints are not compatible with select versions of the supported
 | Model            | /api/v1/text/contents | /api/v1/text/generation | /api/v1/text/chat | /api/v1/text/context/doc |
 |------------------|-----------------------|-------------------------|-------------------|--------------------------|
 | granite guardian | &check;               | &check;                 | &check;           | *                        |
-| llamba guard     | &check;               | &check;                 | &check;           | &cross;                  |
+| llama guard     | &check;               | &check;                 | &check;           | &cross;                  |
 
 \* granite guardian versions < 3.2 is not compatible with this endpoint 
 
