@@ -1,4 +1,5 @@
 # Standard
+from http import HTTPStatus
 from typing import Optional
 import asyncio
 
@@ -133,6 +134,16 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 # Propagate any request problems that will not allow
                 # task template to be applied
                 return request
+
+        # Because conversation roles are expected to alternate between 'user' and 'assistant'
+        # validate whether role_override was passed as a detector_param, which is invalid
+        # since explicitly overriding the conversation roles will result in an error.
+        if "role_override" in request.detector_params:
+            return ErrorResponse(
+                message="role_override is an invalid parameter for llama guard",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
 
         # Since separate batch processing function doesn't exist at the time of writing,
         # we are just going to collect all the text from content request and fire up
