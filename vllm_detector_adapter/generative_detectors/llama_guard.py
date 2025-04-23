@@ -135,9 +135,9 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 # task template to be applied
                 return request
 
-        # Validate whether role_override was passed as a detector_param, which is invalid for llama guard,
-        # because conversation roles are expected to alternate between 'user' and 'assistant' roles. 
-        # Therefore explicitly overriding the conversation roles will result in an error.
+        # Because conversation roles are expected to alternate between 'user' and 'assistant'
+        # validate whether role_override was passed as a detector_param, which is invalid
+        # since explicitly overriding the conversation roles will result in an error.
         if "role_override" in request.detector_params:
             return ErrorResponse(
                 message="role_override is an invalid parameter for llama guard",
