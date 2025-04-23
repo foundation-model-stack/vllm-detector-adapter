@@ -138,7 +138,7 @@ class LlamaGuard(ChatCompletionDetectionBase):
         # Validate whether role_override was passed as a detector_param, which is invalid for llama guard.
         if "role_override" in request.detector_params:
             return ErrorResponse(
-                message="role_override is invalid parameter for llama guard",
+                message="role_override is an invalid parameter for llama guard",
                 type="BadRequestError",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
