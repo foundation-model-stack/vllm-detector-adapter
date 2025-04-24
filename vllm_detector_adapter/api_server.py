@@ -18,7 +18,6 @@ from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_se
 from vllm.entrypoints.openai.protocol import ErrorResponse
 from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
 from vllm.entrypoints.openai.tool_parsers import ToolParserManager
-from vllm.reasoning import ReasoningParserManager
 from vllm.utils import FlexibleArgumentParser, is_valid_ipv6_address, set_ulimit
 from vllm.version import __version__ as VLLM_VERSION
 import uvloop
@@ -35,6 +34,13 @@ from vllm_detector_adapter.protocol import (
     GenerationDetectionRequest,
 )
 from vllm_detector_adapter.utils import LocalEnvVarArgumentParser
+
+try:
+    # Third Party
+    from vllm.entrypoints.openai.reasoning_parsers import ReasoningParserManager
+except ImportError:
+    # Third Party
+    from vllm.reasoning import ReasoningParserManager
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 
