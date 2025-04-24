@@ -1,5 +1,6 @@
 # Standard
 from argparse import Namespace
+from packaging.version import Version
 import inspect
 import signal
 
@@ -21,6 +22,11 @@ from vllm.entrypoints.openai.tool_parsers import ToolParserManager
 from vllm.utils import FlexibleArgumentParser, is_valid_ipv6_address, set_ulimit
 from vllm.version import __version__ as VLLM_VERSION
 import uvloop
+
+if Version(VLLM_VERSION) < Version("0.8.3"):
+    from vllm.entrypoints.openai.reasoning_parsers import ReasoningParserManager
+else:
+    from vllm.reasoning import ReasoningParserManager
 
 # Local
 from vllm_detector_adapter import generative_detectors
