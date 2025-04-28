@@ -1,7 +1,11 @@
+# Standard
 import argparse
 import json
 import tomllib
+
+# Third Party
 import tomli_w
+
 
 def parse_args():
 
@@ -16,27 +20,27 @@ def parse_args():
     )
     return parser.parse_args()
 
+
 def main():
 
     args = parse_args()
 
-    print(
-        f"Trying to update vllm package version to {args.vllm_version}:"
-    )
+    print(f"Trying to update vllm package version to {args.vllm_version}:")
 
     with open("pyproject.toml", "rb") as f:
         data = tomllib.load(f)
-        data["project"]["optional-dependencies"]["vllm"][0] = (
-            f"vllm @ git+https://github.com/vllm-project/vllm.git@v{args.vllm_version} ; sys_platform == 'darwin'"
-        ) 
-        data["project"]["optional-dependencies"]["vllm"][1] = (
-            f"vllm=={args.vllm_version} ; sys_platform != 'darwin'"
-        )
+        data["project"]["optional-dependencies"]["vllm"][
+            0
+        ] = f"vllm @ git+https://github.com/vllm-project/vllm.git@v{args.vllm_version} ; sys_platform == 'darwin'"
+        data["project"]["optional-dependencies"]["vllm"][
+            1
+        ] = f"vllm=={args.vllm_version} ; sys_platform != 'darwin'"
 
     with open("pyproject.toml", "wb") as f:
         tomli_w.dump(data, f)
 
     print(f"VLLM version updated to {args.vllm_version} successfully!")
+
 
 if __name__ == "__main__":
     main()
