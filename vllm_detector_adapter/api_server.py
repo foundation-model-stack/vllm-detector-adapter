@@ -77,18 +77,12 @@ async def init_app_state_with_detectors(
         BaseModelPath(name=name, model_path=args.model) for name in served_model_names
     ]
 
-    # Use vllm app state init
-    # init_app_state became async in https://github.com/vllm-project/vllm/pull/11727
-    # ref. https://github.com/opendatahub-io/vllm-tgis-adapter/pull/207
-    maybe_coroutine = api_server.init_app_state(engine_client, config, state, args)
-    if inspect.isawaitable(maybe_coroutine):
-        await maybe_coroutine
+    resolved_chat_template = load_chat_template(args.chat_template)
 
     model_config = config
     if type(config) != ModelConfig:  # VllmConfig
         model_config = config.model_config
 
-    resolved_chat_template = load_chat_template(args.chat_template)
     state.openai_serving_models = OpenAIServingModels(
         engine_client=engine_client,
         model_config=model_config,
@@ -96,6 +90,13 @@ async def init_app_state_with_detectors(
         lora_modules=args.lora_modules,
         prompt_adapters=args.prompt_adapters,
     )
+
+    # Use vllm app state init
+    # init_app_state became async in https://github.com/vllm-project/vllm/pull/11727
+    # ref. https://github.com/opendatahub-io/vllm-tgis-adapter/pull/207
+    maybe_coroutine = api_server.init_app_state(engine_client, config, state, args)
+    if inspect.isawaitable(maybe_coroutine):
+        await maybe_coroutine
 
     generative_detector_class = generative_detectors.MODEL_CLASS_MAP[args.model_type]
 
