@@ -58,7 +58,7 @@ def chat_detection(
 
 async def init_app_state_with_detectors(
     engine_client: EngineClient,
-    model_config: ModelConfig,
+    config,  # ModelConfig | VllmConfig
     state: State,
     args: Namespace,
 ) -> None:
@@ -77,6 +77,17 @@ async def init_app_state_with_detectors(
         BaseModelPath(name=name, model_path=args.model) for name in served_model_names
     ]
 
+    # Use vllm app state init
+    # init_app_state became async in https://github.com/vllm-project/vllm/pull/11727
+    # ref. https://github.com/opendatahub-io/vllm-tgis-adapter/pull/207
+    maybe_coroutine = api_server.init_app_state(engine_client, config, state, args)
+    if inspect.isawaitable(maybe_coroutine):
+        await maybe_coroutine
+
+    model_config = config
+    if type(config) != ModelConfig:  # VllmConfig
+        model_config = config.model_config
+
     resolved_chat_template = load_chat_template(args.chat_template)
     state.openai_serving_models = OpenAIServingModels(
         engine_client=engine_client,
@@ -85,15 +96,6 @@ async def init_app_state_with_detectors(
         lora_modules=args.lora_modules,
         prompt_adapters=args.prompt_adapters,
     )
-
-    # Use vllm app state init
-    # init_app_state became async in https://github.com/vllm-project/vllm/pull/11727
-    # ref. https://github.com/opendatahub-io/vllm-tgis-adapter/pull/207
-    maybe_coroutine = api_server.init_app_state(
-        engine_client, model_config, state, args
-    )
-    if inspect.isawaitable(maybe_coroutine):
-        await maybe_coroutine
 
     generative_detector_class = generative_detectors.MODEL_CLASS_MAP[args.model_type]
 
@@ -160,10 +162,18 @@ async def run_server(args, **uvicorn_kwargs) -> None:
         # Use vllm build_app which adds middleware
         app = api_server.build_app(args)
 
-        model_config = await engine_client.get_model_config()
-        await init_app_state_with_detectors(
-            engine_client, model_config, app.state, args
-        )
+        # api_server.init_app_state takes vllm_config
+        # ref. https://github.com/vllm-project/vllm/pull/16572
+        if hasattr(engine_client, "get_vllm_config"):
+            vllm_config = await engine_client.get_vllm_config()
+            await init_app_state_with_detectors(
+                engine_client, vllm_config, app.state, args
+            )
+        else:
+            model_config = await engine_client.get_model_config()
+            await init_app_state_with_detectors(
+                engine_client, model_config, app.state, args
+            )
 
         def _listen_addr(a: str) -> str:
             if is_valid_ipv6_address(a):
@@ -282,10 +292,14 @@ def add_chat_detection_params(parser):
 
     template_type = None
     try:
+        # Third Party
         from vllm.engine.arg_utils import nullable_str
+
         template_type = nullable_str
     except ImportError:
+        # Third Party
         from vllm.engine.arg_utils import optional_str
+
         template_type = optional_str
 
     parser.add_argument(
