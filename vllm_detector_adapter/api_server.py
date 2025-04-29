@@ -8,7 +8,6 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.datastructures import State
 from vllm.config import ModelConfig
-from vllm.engine.arg_utils import nullable_str
 from vllm.engine.protocol import EngineClient
 from vllm.entrypoints.chat_utils import load_chat_template
 from vllm.entrypoints.launcher import serve_http
@@ -280,9 +279,18 @@ async def create_generation_detection(
 
 
 def add_chat_detection_params(parser):
+
+    template_type = None
+    try:
+        from vllm.engine.arg_utils import nullable_str
+        template_type = nullable_str
+    except ImportError:
+        from vllm.engine.arg_utils import optional_str
+        template_type = optional_str
+
     parser.add_argument(
         "--task-template",
-        type=nullable_str,
+        type=template_type,
         default=None,
         help="The file path to the task template, "
         "or the template in single-line form "
@@ -290,7 +298,7 @@ def add_chat_detection_params(parser):
     )
     parser.add_argument(
         "--output-template",
-        type=nullable_str,
+        type=template_type,
         default=None,
         help="The file path to the output template, "
         "or the template in single-line form "
