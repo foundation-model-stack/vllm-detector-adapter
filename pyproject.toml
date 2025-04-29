@@ -22,8 +22,8 @@ vllm-tgis-adapter = [
 ]
 vllm = [
     # Note: 0.8.4 has a triton bug on Mac
-    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.8.3 ; sys_platform == 'darwin'",
-    "vllm>=0.7.2,<0.8.5 ; sys_platform != 'darwin'",
+    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.8.5 ; sys_platform == 'darwin'",
+    "vllm>=0.7.2,<0.8.6 ; sys_platform != 'darwin'",
 ]
 
 ## Dev Extra Sets ##
