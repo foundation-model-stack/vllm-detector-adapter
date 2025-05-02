@@ -1,4 +1,6 @@
+# Third Party
 import requests
+
 
 def test_startup(api_base_url):
     """Smoke-test: test that the servers starts and health endpoint returns a 200 status code"""

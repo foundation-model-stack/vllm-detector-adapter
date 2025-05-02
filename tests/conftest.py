@@ -1,23 +1,29 @@
 """
 Pytest fixtures for spinning up a live vllm-detector-adapter HTTP server
 """
+
+# Future
 from __future__ import annotations
 
+# Standard
+from collections.abc import Generator
 import argparse
 import asyncio
 import signal
 import sys
 import threading
-from collections.abc import Generator
 
-import pytest
-import requests
+# Third Party
 from vllm.entrypoints.openai.cli_args import make_arg_parser
 from vllm.utils import FlexibleArgumentParser
+import pytest
+import requests
 
-from vllm_detector_adapter.api_server import run_server, add_chat_detection_params
+# Local
+from .utils import TaskFailedError, get_random_port, wait_until
+from vllm_detector_adapter.api_server import add_chat_detection_params, run_server
 from vllm_detector_adapter.utils import LocalEnvVarArgumentParser
-from .utils import get_random_port, wait_until, TaskFailedError
+
 
 @pytest.fixture(scope="session")
 def http_server_port() -> int:
@@ -31,7 +37,7 @@ def http_server_url(http_server_port: int) -> str:
     return f"http://localhost:{http_server_port}"
 
 
-@pytest.fixture 
+@pytest.fixture
 def args(monkeypatch, http_server_port: int) -> argparse.Namespace:
     """Mimic: python -m vllm_detector_adapter.api_server --model <MODEL> …"""
     # Use a 'tiny' model for test purposes
@@ -39,11 +45,11 @@ def args(monkeypatch, http_server_port: int) -> argparse.Namespace:
 
     mock_argv = [
         "__main__.py",
-        "--model", model_name,
+        "--model",
+        model_name,
         f"--port={http_server_port}",
         "--host=localhost",
         "--dtype=float32",
-        
     ]
     monkeypatch.setattr(sys, "argv", mock_argv, raising=False)
 
@@ -88,7 +94,7 @@ def _servers(
     try:
         wait_until(_health, timeout=60.0, interval=1.0)
         # tests execute with live server
-        yield  
+        yield
     finally:
         if task:
             task.cancel()
