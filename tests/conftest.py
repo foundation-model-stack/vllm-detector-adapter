@@ -50,6 +50,7 @@ def args(monkeypatch, http_server_port: int) -> argparse.Namespace:
         f"--port={http_server_port}",
         "--host=localhost",
         "--dtype=float32",
+        "--device=cpu", 
     ]
     monkeypatch.setattr(sys, "argv", mock_argv, raising=False)
 
