@@ -93,7 +93,7 @@ def _servers(
         return True
 
     try:
-        wait_until(_health, timeout=60.0, interval=1.0)
+        wait_until(_health, timeout=120.0, interval=1.0)
         # tests execute with live server
         yield
     finally:
