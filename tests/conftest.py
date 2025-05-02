@@ -52,6 +52,9 @@ def args(monkeypatch, http_server_port: int) -> argparse.Namespace:
         "--dtype=float32",
         "--device=cpu",
         "--disable-async-output-proc",
+        "--enforce-eager",
+        "--max-model-len",
+        "128",
     ]
     monkeypatch.setattr(sys, "argv", mock_argv, raising=False)
 
