@@ -12,6 +12,7 @@ import asyncio
 import signal
 import sys
 import threading
+import traceback
 
 # Third Party
 from vllm.entrypoints.openai.cli_args import make_arg_parser
@@ -83,7 +84,12 @@ def _servers(
         nonlocal task
         task = loop.create_task(run_server(args))
         try:
+            print("[conftest] starting run server...", flush=True)
             loop.run_until_complete(task)
+        except Exception as e:
+            print("[conftest] server failed to start:", e, flush=True)
+            traceback.print_exc
+            raise
         finally:
             loop.close()
 
