@@ -16,7 +16,6 @@ import traceback
 
 # Third Party
 from vllm.entrypoints.openai.cli_args import make_arg_parser
-from vllm.entrypoints.openai.api_server import run_and
 from vllm.utils import FlexibleArgumentParser
 import pytest
 import requests
