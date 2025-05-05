@@ -16,6 +16,7 @@ import traceback
 
 # Third Party
 from vllm.entrypoints.openai.cli_args import make_arg_parser
+from vllm.entrypoints.openai.api_server import run_and
 from vllm.utils import FlexibleArgumentParser
 import pytest
 import requests
@@ -52,10 +53,9 @@ def args(monkeypatch, http_server_port: int) -> argparse.Namespace:
         "--host=localhost",
         "--dtype=float32",
         "--device=cpu",
+        "--disable-frontend-multiprocessing",
         "--disable-async-output-proc",
         "--enforce-eager",
-        "--max-model-len",
-        "128",
     ]
     monkeypatch.setattr(sys, "argv", mock_argv, raising=False)
 
