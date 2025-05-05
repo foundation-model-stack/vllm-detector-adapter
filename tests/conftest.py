@@ -15,7 +15,7 @@ import threading
 import traceback
 
 # Third Party
-from vllm.entrypoints.openai.cli_args import make_arg_parser
+from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
 from vllm.utils import FlexibleArgumentParser
 import pytest
 import requests
@@ -62,7 +62,9 @@ def args(monkeypatch, http_server_port: int) -> argparse.Namespace:
     base_parser = FlexibleArgumentParser(description="vLLM server setup for pytest.")
     parser = LocalEnvVarArgumentParser(parser=make_arg_parser(base_parser))
     parser = add_chat_detection_params(parser)
-    return parser.parse_args()
+    args = parser.parse_args()
+    validate_parsed_serve_args(args)
+    return args
 
 
 @pytest.fixture
