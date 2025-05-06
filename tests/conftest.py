@@ -55,7 +55,7 @@ def args(monkeypatch, http_server_port: int) -> argparse.Namespace:
     ]
     monkeypatch.setattr(sys, "argv", mock_argv, raising=False)
 
-    # Build parser like __main__ in api.server.py
+    # Build parser like __main__ in api_server.py
     base_parser = FlexibleArgumentParser(description="vLLM server setup for pytest.")
     parser = LocalEnvVarArgumentParser(parser=make_arg_parser(base_parser))
     parser = add_chat_detection_params(parser)
