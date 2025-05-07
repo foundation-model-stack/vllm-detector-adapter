@@ -45,7 +45,7 @@ def args(monkeypatch, http_server_port: int) -> argparse.Namespace:
     model_name = "facebook/opt-125m"
 
     mock_argv = [
-        "__main__.py",
+        "api_server.py",
         "--model",
         model_name,
         f"--port={http_server_port}",
