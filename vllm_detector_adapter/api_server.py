@@ -299,9 +299,9 @@ def add_chat_detection_params(parser):
         template_type = nullable_str
     except ImportError:
         # Third Party
-        from vllm.engine.arg_utils import optional_str
+        from vllm.engine.arg_utils import optional_type
 
-        template_type = optional_str
+        template_type = optional_type(str)
 
     parser.add_argument(
         "--task-template",
