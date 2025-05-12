@@ -22,17 +22,18 @@ jobs:
           LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
           echo "LATEST_TAG=${LATEST_TAG:1}" >> $GITHUB_OUTPUT
       - name: Update vllm version to latest
+        id: update-vllm-version
         env:
-          VLLM_TAG: ${{ steps.latest-vllm-tag.outputs.LATEST_TAG}}
+          VLLM_TAG: ${{ steps.latest-vllm-tag.outputs.LATEST_TAG }}
         run: |
-          echo $VLLM_TAG
           python -m pip install --upgrade pip
           pip install tomli-w
           python scripts/update_vllm_version.py --vllm_version $VLLM_TAG
       - name: Install dependencies
+        if: steps.update-vllm-version.outputs.SKIP_VERSION != 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r setup_requirements.txt
       - name: Build and test with tox
+        if: steps.update-vllm-version.outputs.SKIP_VERSION != 'true'
         run: tox -e py
-
