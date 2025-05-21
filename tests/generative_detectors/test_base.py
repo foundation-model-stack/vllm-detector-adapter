@@ -236,6 +236,7 @@ def test_content_analysis_invalid_detection_object(detection_base):
         ),
     ):
         result = asyncio.run(base_instance.content_analysis(content_request))
+        # Local
         from vllm_detector_adapter.generative_detectors.base import ErrorResponse
 
         assert isinstance(result, ErrorResponse)
