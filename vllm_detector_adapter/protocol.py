@@ -82,7 +82,7 @@ class ContentsDetectionResponseObject(BaseModel):
             # NOTE: for providing spans, we currently consider entire generated text as a span.
             # This is because, at the time of writing, the generative guardrail models does not
             # provide specific information about input text, which can be used to deduce spans.
-            if content and isinstance(content, str):
+            if content and isinstance(content, str) and len(content.strip()) > 0:
                 response_object = ContentsDetectionResponseObject(
                     detection_type=detection_type,
                     detection=content.strip(),
@@ -93,6 +93,7 @@ class ContentsDetectionResponseObject(BaseModel):
                     metadata=metadata_per_choice[i] if metadata_per_choice else {},
                 ).model_dump()
                 detection_responses.append(response_object)
+
             else:
                 # This case should be unlikely but we handle it since a detection
                 # can't be returned without the content
@@ -105,6 +106,18 @@ class ContentsDetectionResponseObject(BaseModel):
                     code=HTTPStatus.BAD_REQUEST.value,
                 )
 
+        if not (
+            isinstance(detection_responses, list)
+            and all(
+                isinstance(item, (ContentsDetectionResponseObject, dict))
+                for item in detection_responses
+            )
+        ):
+            return ErrorResponse(
+                type="BadRequestError",
+                message=f"Invalid result. Consider updating input and/or parameters for detections.",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
         return detection_responses
 
 

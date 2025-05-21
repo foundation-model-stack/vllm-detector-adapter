@@ -1,5 +1,6 @@
 # Standard
 from http import HTTPStatus
+from unittest.mock import patch
 
 # Third Party
 from vllm.entrypoints.openai.protocol import (
@@ -357,3 +358,38 @@ def test_response_from_completion_response_missing_content():
         in detection_response.message
     )
     assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+
+
+def test_detection_responses_invalid_instance_type():
+    """Test that an error is returned if the from_chat_completion_response has an invalid type (tuple)."""
+
+    choice = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(
+            role="assistant",
+            content="moose",
+        ),
+    )
+    dummy_response = ChatCompletionResponse(
+        model=MODEL_NAME,
+        choices=[choice],
+        usage=UsageInfo(prompt_tokens=20, total_tokens=40, completion_tokens=4),
+    )
+    scores = [0.5]
+    detection_type = "type"
+    req_content = "dummy"
+
+    # Add a patch to return a tuple during the model_dump call instead of a valid instance (dict, ContentsDetectionResponseObject)
+    # This will cause the list to have a tuple in it that should return an ErrorResponse
+    with patch(
+        "vllm_detector_adapter.protocol.ContentsDetectionResponseObject.model_dump",
+        return_value=("this", "is", "not", "valid"),  # Not a dict!
+    ):
+        result = ContentsDetectionResponseObject.from_chat_completion_response(
+            dummy_response, scores, detection_type, req_content
+        )
+
+    # Validate an ErrorResponse is returned
+    assert isinstance(result, ErrorResponse)
+    assert result.type == "BadRequestError"
+    assert "Invalid result" in result.message
