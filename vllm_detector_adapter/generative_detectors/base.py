@@ -448,7 +448,13 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
                 )
 
                 # Verify whether the new_result is the correct response instance (an error could make the type an invalid value, such as a tuple, etc)
-                if not isinstance(new_result, ContentsDetectionResponseObject):
+                if not (
+                    isinstance(new_result, list)
+                    and all(
+                        isinstance(item, (ContentsDetectionResponseObject, dict))
+                        for item in new_result
+                    )
+                ):
                     logger.error(
                         f"[content_analysis] new_result is not ContentsDetectionResponseObject: {repr(new_result)}"
                     )
