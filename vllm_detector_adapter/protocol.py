@@ -115,7 +115,7 @@ class ContentsDetectionResponseObject(BaseModel):
         ):
             return ErrorResponse(
                 type="BadRequestError",
-                message=f"Invalid result. Consider updating input and/or parameters for detections.",
+                message="Invalid result. Consider updating input and/or parameters for detections.",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
         return detection_responses
