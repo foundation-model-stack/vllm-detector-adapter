@@ -447,7 +447,11 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
                     )
                 )
 
-                # Verify whether the new_result is the correct response instance (an error could make the type an invalid value, such as a tuple, etc)
+                # Verify whether the new_result is the correct response instance (i.e. an errorresponse or list of ContentsDetectionResponseObject )
+                # (an error could make the type an invalid value, such as a tuple, etc)
+                if isinstance(new_result, ErrorResponse):
+                    return new_result
+
                 if not (
                     isinstance(new_result, list)
                     and all(
@@ -455,13 +459,13 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
                         for item in new_result
                     )
                 ):
-                    logger.error(
+                    logger.debug(
                         f"[content_analysis] new_result is not ContentsDetectionResponseObject: {repr(new_result)}"
                     )
 
                     return ErrorResponse(
                         type="BadRequestError",
-                        message=f"Result at index {result_idx} is not a valid ContentsDetectionResponseObject.",
+                        message=f"Invalid result at index {result_idx}. Consider updating input and/or parameters for detections.",
                         code=HTTPStatus.BAD_REQUEST.value,
                     )
 

@@ -241,4 +241,3 @@ def test_content_analysis_invalid_detection_object(detection_base):
 
         assert isinstance(result, ErrorResponse)
         assert result.type == "BadRequestError"
-        assert "not a valid ContentsDetectionResponseObject" in result.message
