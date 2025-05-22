@@ -383,7 +383,7 @@ def test_detection_responses_invalid_instance_type():
     # This will cause the list to have a tuple in it that should return an ErrorResponse
     with patch(
         "vllm_detector_adapter.protocol.ContentsDetectionResponseObject.model_dump",
-        return_value=("this", "is", "not", "valid"),  # Not a dict!
+        return_value=("this", "is", "not", "valid"),
     ):
         result = ContentsDetectionResponseObject.from_chat_completion_response(
             dummy_response, scores, detection_type, req_content
