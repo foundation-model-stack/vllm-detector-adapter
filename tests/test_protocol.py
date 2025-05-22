@@ -360,36 +360,34 @@ def test_response_from_completion_response_missing_content():
     assert detection_response.code == HTTPStatus.BAD_REQUEST.value
 
 
-def test_detection_responses_invalid_instance_type():
-    """Test that an error is returned if the from_chat_completion_response has an invalid type (tuple)."""
-
-    choice = ChatCompletionResponseChoice(
+def test_response_from_empty_string_content_detection():
+    choice_content_0 = ChatCompletionResponseChoice(
         index=0,
         message=ChatMessage(
             role="assistant",
-            content="moose",
+            content="",
         ),
     )
-    dummy_response = ChatCompletionResponse(
+    chat_response_0 = ChatCompletionResponse(
         model=MODEL_NAME,
-        choices=[choice],
-        usage=UsageInfo(prompt_tokens=20, total_tokens=40, completion_tokens=4),
+        choices=[choice_content_0],
+        usage=UsageInfo(prompt_tokens=136, total_tokens=140, completion_tokens=4),
     )
-    scores = [0.5]
-    detection_type = "type"
-    req_content = "dummy"
 
-    # Add a patch to return a tuple during the model_dump call instead of a valid instance (dict, ContentsDetectionResponseObject)
-    # This will cause the list to have a tuple in it that should return an ErrorResponse
-    with patch(
-        "vllm_detector_adapter.protocol.ContentsDetectionResponseObject.model_dump",
-        return_value=("this", "is", "not", "valid"),
-    ):
-        result = ContentsDetectionResponseObject.from_chat_completion_response(
-            dummy_response, scores, detection_type, req_content
-        )
+    contents = ["sample sentence 1"]
+    # scores for each content is a list of scores (for multi-label)
+    scores = [[0.9]]
+    detection_type = "risk"
 
-    # Validate an ErrorResponse is returned
-    assert isinstance(result, ErrorResponse)
-    assert result.type == "BadRequestError"
-    assert "Invalid result" in result.message
+    detection_response = ContentsDetectionResponse.from_chat_completion_response(
+        [
+            (chat_response_0, scores[0], detection_type),
+        ],
+        contents,
+    )
+    assert type(detection_response) == ErrorResponse
+    assert (
+        "Choice 0 from chat completion does not have content"
+        in detection_response.message
+    )
+    assert detection_response.code == HTTPStatus.BAD_REQUEST.value

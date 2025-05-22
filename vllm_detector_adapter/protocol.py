@@ -106,18 +106,6 @@ class ContentsDetectionResponseObject(BaseModel):
                     code=HTTPStatus.BAD_REQUEST.value,
                 )
 
-        if not (
-            isinstance(detection_responses, list)
-            and all(
-                isinstance(item, (ContentsDetectionResponseObject, dict))
-                for item in detection_responses
-            )
-        ):
-            return ErrorResponse(
-                type="BadRequestError",
-                message="Invalid result. Consider updating input and/or parameters for detections.",
-                code=HTTPStatus.BAD_REQUEST.value,
-            )
         return detection_responses
 
 
