@@ -220,24 +220,19 @@ def test_content_analysis_errorresponse_verification(detection_base):
         message=ChatMessage(role="assistant", content=""),
         logprobs=ChatCompletionLogProbs(content=[]),
     )
-    response = ChatCompletionResponse(
+    completion_response = ChatCompletionResponse(
         model="test-model",
         choices=[choice],
         usage=UsageInfo(prompt_tokens=1, total_tokens=2, completion_tokens=1),
     )
     scores = [0.5]
     detection_type = "risk"
+    response = (completion_response, scores, detection_type)
 
-    # Patch the process_chat_completion_with_scores and post_process_completion_results to return results
-    with (
-        patch(
-            "vllm_detector_adapter.generative_detectors.base.ChatCompletionDetectionBase.process_chat_completion_with_scores",
-            return_value=(response, scores, detection_type, {}),
-        ),
-        patch(
-            "vllm_detector_adapter.generative_detectors.base.ChatCompletionDetectionBase.post_process_completion_results",
-            side_effect=lambda *args, **kwargs: (response, scores, detection_type, {}),
-        ),
+    # Patch the process_chat_completion_with_scores to return response
+    with patch(
+        "vllm_detector_adapter.generative_detectors.base.ChatCompletionDetectionBase.process_chat_completion_with_scores",
+        return_value=response,
     ):
         result = asyncio.run(base_instance.content_analysis(content_request))
 

@@ -447,7 +447,7 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
                     )
                 )
 
-                # Verify whether the new_result is the correct is an errorresponse, and if so, returh the errorresponse
+                # Verify whether the new_result is the correct is an errorresponse, and if so, return the errorresponse
                 if isinstance(new_result, ErrorResponse):
                     logger.debug(
                         f"[content_analysis] ErrorResponse returned: {repr(new_result)}"

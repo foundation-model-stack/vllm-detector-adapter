@@ -82,7 +82,7 @@ class ContentsDetectionResponseObject(BaseModel):
             # NOTE: for providing spans, we currently consider entire generated text as a span.
             # This is because, at the time of writing, the generative guardrail models does not
             # provide specific information about input text, which can be used to deduce spans.
-            if content and isinstance(content, str) and content.strip():
+            if isinstance(content, str) and content.strip():
                 response_object = ContentsDetectionResponseObject(
                     detection_type=detection_type,
                     detection=content.strip(),
@@ -336,7 +336,7 @@ class DetectionResponse(RootModel):
         detection_responses = []
         for i, choice in enumerate(response.choices):
             content = choice.message.content
-            if content and isinstance(content, str):
+            if isinstance(content, str) and content.strip():
                 response_object = DetectionResponseObject(
                     detection_type=detection_type,
                     detection=content.strip(),
