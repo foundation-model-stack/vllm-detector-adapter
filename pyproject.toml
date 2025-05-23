@@ -18,7 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 vllm-tgis-adapter = [
-    "vllm-tgis-adapter>=0.7.0,<0.7.1"
+    "vllm-tgis-adapter>=0.7.0,<0.7.2"
 ]
 vllm = [
     # Note: 0.8.4 has a triton bug on Mac
