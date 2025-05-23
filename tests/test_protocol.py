@@ -1,5 +1,6 @@
 # Standard
 from http import HTTPStatus
+from unittest.mock import patch
 
 # Third Party
 from vllm.entrypoints.openai.protocol import (
@@ -354,6 +355,39 @@ def test_response_from_completion_response_missing_content():
     assert type(detection_response) == ErrorResponse
     assert (
         "Choice 1 from chat completion does not have content"
+        in detection_response.message
+    )
+    assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+
+
+def test_response_from_empty_string_content_detection():
+    choice_content_0 = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(
+            role="assistant",
+            content="",
+        ),
+    )
+    chat_response_0 = ChatCompletionResponse(
+        model=MODEL_NAME,
+        choices=[choice_content_0],
+        usage=UsageInfo(prompt_tokens=136, total_tokens=140, completion_tokens=4),
+    )
+
+    contents = ["sample sentence 1"]
+    # scores for each content is a list of scores (for multi-label)
+    scores = [[0.9]]
+    detection_type = "risk"
+
+    detection_response = ContentsDetectionResponse.from_chat_completion_response(
+        [
+            (chat_response_0, scores[0], detection_type),
+        ],
+        contents,
+    )
+    assert type(detection_response) == ErrorResponse
+    assert (
+        "Choice 0 from chat completion does not have content"
         in detection_response.message
     )
     assert detection_response.code == HTTPStatus.BAD_REQUEST.value

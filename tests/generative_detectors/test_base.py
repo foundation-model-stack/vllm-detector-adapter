@@ -21,7 +21,10 @@ import pytest
 import pytest_asyncio
 
 # Local
-from vllm_detector_adapter.generative_detectors.base import ChatCompletionDetectionBase
+from vllm_detector_adapter.generative_detectors.base import (
+    ChatCompletionDetectionBase,
+    ErrorResponse,
+)
 from vllm_detector_adapter.protocol import (
     ContentsDetectionRequest,
     ContentsDetectionResponse,
@@ -204,3 +207,35 @@ def test_content_analysis_success(detection_base, completion_response):
         assert detections[1][0]["start"] == 0
         assert detections[1][0]["end"] == len(content_request.contents[1])
         assert detections[1][0]["metadata"] == {}
+
+
+def test_content_analysis_errorresponse_verification(detection_base):
+    """Test that content_analysis properly propagates an ErrorResponse when a choice has empty content."""
+    base_instance = asyncio.run(detection_base)
+    content_request = ContentsDetectionRequest(contents=["Where do I find geese?"])
+
+    # Simulate what the model would produce for a request: empty content triggers error
+    choice = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(role="assistant", content=""),
+        logprobs=ChatCompletionLogProbs(content=[]),
+    )
+    completion_response = ChatCompletionResponse(
+        model="test-model",
+        choices=[choice],
+        usage=UsageInfo(prompt_tokens=1, total_tokens=2, completion_tokens=1),
+    )
+    scores = [0.5]
+    detection_type = "risk"
+    response = (completion_response, scores, detection_type)
+
+    # Patch the process_chat_completion_with_scores to return response
+    with patch(
+        "vllm_detector_adapter.generative_detectors.base.ChatCompletionDetectionBase.process_chat_completion_with_scores",
+        return_value=response,
+    ):
+        result = asyncio.run(base_instance.content_analysis(content_request))
+
+        assert isinstance(result, ErrorResponse)
+        assert result.type == "BadRequestError"
+        assert "does not have content" in result.message
