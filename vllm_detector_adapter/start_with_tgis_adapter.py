@@ -73,14 +73,10 @@ async def run_http_server(
     app = api_server.build_app(args)
     if hasattr(engine, "get_vllm_config"):
         vllm_config = await engine.get_vllm_config()
-        await init_app_state_with_detectors(
-            engine, vllm_config, app.state, args
-        )
+        await init_app_state_with_detectors(engine, vllm_config, app.state, args)
     else:
         model_config = await engine.get_model_config()
-        await init_app_state_with_detectors(
-            engine, model_config, app.state, args
-        )
+        await init_app_state_with_detectors(engine, model_config, app.state, args)
 
     serve_kwargs = {
         "host": args.host,
