@@ -195,6 +195,13 @@ class LlamaGuard(ChatCompletionDetectionBase):
                     )
                 )
 
+                # Verify whether the new_result is the correct is an errorresponse, and if so, return the errorresponse
+                if isinstance(new_result, ErrorResponse):
+                    logger.debug(
+                        f"[content_analysis] ErrorResponse returned: {repr(new_result)}"
+                    )
+                    return new_result
+
                 processed_result.append(new_result)
 
         return ContentsDetectionResponse(root=processed_result)
