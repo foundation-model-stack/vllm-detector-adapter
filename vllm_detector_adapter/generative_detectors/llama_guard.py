@@ -1,7 +1,6 @@
 # Standard
 from http import HTTPStatus
-from typing import Optional
-import asyncio
+from typing import Optional, Union
 
 # Third Party
 from fastapi import Request
@@ -13,9 +12,7 @@ from vllm_detector_adapter.logging import init_logger
 from vllm_detector_adapter.protocol import (
     ContentsDetectionRequest,
     ContentsDetectionResponse,
-    ContentsDetectionResponseObject,
 )
-from vllm_detector_adapter.utils import DetectorType
 
 logger = init_logger(__name__)
 
@@ -122,18 +119,8 @@ class LlamaGuard(ChatCompletionDetectionBase):
         self,
         request: ContentsDetectionRequest,
         raw_request: Optional[Request] = None,
-    ):
+    ) -> Union[ContentsDetectionResponse, ErrorResponse]:
         """Function used to call chat detection and provide a /text/contents response"""
-
-        # Apply task template if it exists
-        if self.task_template:
-            request = self.apply_task_template(
-                request, fn_type=DetectorType.TEXT_CONTENT
-            )
-            if isinstance(request, ErrorResponse):
-                # Propagate any request problems that will not allow
-                # task template to be applied
-                return request
 
         # Because conversation roles are expected to alternate between 'user' and 'assistant'
         # validate whether role_override was passed as a detector_param, which is invalid
@@ -145,63 +132,4 @@ class LlamaGuard(ChatCompletionDetectionBase):
                 code=HTTPStatus.BAD_REQUEST.value,
             )
 
-        # Since separate batch processing function doesn't exist at the time of writing,
-        # we are just going to collect all the text from content request and fire up
-        # separate requests and wait asynchronously.
-        # This mirrors how batching is handled in run_batch function in entrypoints/openai/
-        # in vLLM codebase.
-        completion_requests = self.preprocess_request(
-            request, fn_type=DetectorType.TEXT_CONTENT
-        )
-
-        # Send all the completion requests asynchronously.
-        tasks = [
-            asyncio.create_task(
-                self.process_chat_completion_with_scores(
-                    completion_request, raw_request
-                )
-            )
-            for completion_request in completion_requests
-        ]
-
-        # Gather all the results
-        # NOTE: The results are guaranteed to be in order of requests
-        results = await asyncio.gather(*tasks)
-
-        # If there is any error, return that otherwise, return the whole response
-        # properly formatted.
-        processed_result = []
-        for result_idx, result in enumerate(results):
-            # NOTE: we are only sending 1 of the error results
-            # and not every one (not cumulative)
-            if isinstance(result, ErrorResponse):
-                return result
-            else:
-                # Process results to split out safety categories into separate objects
-                (
-                    response,
-                    new_scores,
-                    detection_type,
-                    metadata_per_choice,
-                ) = await self.post_process_completion_results(*result)
-
-                new_result = (
-                    ContentsDetectionResponseObject.from_chat_completion_response(
-                        response,
-                        new_scores,
-                        detection_type,
-                        request.contents[result_idx],
-                        metadata_per_choice=metadata_per_choice,
-                    )
-                )
-
-                # Verify whether the new_result is the correct is an errorresponse, and if so, return the errorresponse
-                if isinstance(new_result, ErrorResponse):
-                    logger.debug(
-                        f"[content_analysis] ErrorResponse returned: {repr(new_result)}"
-                    )
-                    return new_result
-
-                processed_result.append(new_result)
-
-        return ContentsDetectionResponse(root=processed_result)
+        return await super().content_analysis(request, raw_request)
