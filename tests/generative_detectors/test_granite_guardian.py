@@ -463,6 +463,9 @@ def test_preprocess_chat_request_with_extra_chat_template_kwargs(
     }
 
 
+#### Helper function request->chat_completion_request tests
+
+
 def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     context_request = ContextAnalysisRequest(
@@ -499,7 +502,7 @@ def test_request_to_chat_completion_request_prompt_analysis(granite_guardian_det
     )
 
 
-def test_request_to_chat_completion_request_reponse_analysis(
+def test_request_to_chat_completion_request_response_analysis(
     granite_guardian_detection,
 ):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
@@ -569,6 +572,29 @@ def test_request_to_chat_completion_request_empty_guardian_config(
     assert "No risk_name for context analysis" in chat_request.message
 
 
+def test_request_to_chat_completion_request_missing_risk_name(
+    granite_guardian_detection,
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 3,
+            "chat_template_kwargs": {"guardian_config": {"risk_definition": "hi"}},
+        },
+    )
+    chat_request = (
+        granite_guardian_detection_instance._request_to_chat_completion_request(
+            context_request, MODEL_NAME, fn_type=DetectorType.TEXT_CONTEXT_DOC
+        )
+    )
+    assert type(chat_request) == ErrorResponse
+    assert chat_request.code == HTTPStatus.BAD_REQUEST
+    assert "No risk_name for context analysis" in chat_request.message
+
+
 def test_request_to_chat_completion_request_unsupported_risk_name(
     granite_guardian_detection,
 ):
@@ -592,6 +618,9 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     assert (
         "risk_name foo is not compatible with context analysis" in chat_request.message
     )
+
+
+#### Helper function preprocess content tests
 
 
 def test_preprocess_content_request_with_detector_params(granite_guardian_detection):
