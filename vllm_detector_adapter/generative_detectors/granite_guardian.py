@@ -258,9 +258,10 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         if guardian_config := request.detector_params["chat_template_kwargs"][
             "guardian_config"
         ]:
-            risk_name = guardian_config["risk_name"]
-        else:
-            # Leaving off risk name can lead to model/template errors
+            if isinstance(guardian_config, dict):
+                risk_name = guardian_config.get("risk_name")
+        # Leaving off risk name can lead to model/template errors
+        if not risk_name:
             return ErrorResponse(
                 message=NO_RISK_NAME_MESSAGE,
                 type="BadRequestError",
