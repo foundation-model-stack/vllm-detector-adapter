@@ -16,8 +16,8 @@ dependencies = ["orjson>=3.10.16,<3.11"]
 vllm-tgis-adapter = ["vllm-tgis-adapter>=0.7.0,<0.7.2"]
 vllm = [
     # Note: 0.8.4 has a triton bug on Mac
-    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.9.1 ; sys_platform == 'darwin'",
-    "vllm>=0.7.2,==0.9.1.* ; sys_platform != 'darwin'",
+    "vllm @ git+https://github.com/vllm-project/vllm.git@v0.9.0 ; sys_platform == 'darwin'",
+    "vllm>=0.7.2,<0.9.1 ; sys_platform != 'darwin'",
 ]
 
 ## Dev Extra Sets ##
