@@ -8,7 +8,7 @@ ARG BASE_UBI_IMAGE_TAG=9.5
 ARG PYTHON_VERSION=3.12
 
 ### Build layer
-FROM quay.io/vllm/vllm:0.8.5.0_cu128 as build
+FROM quay.io/modh/vllm:rhoai-2.23-cuda as build
 
 ARG PYTHON_VERSION
 ENV PYTHON_VERSION=${PYTHON_VERSION}
