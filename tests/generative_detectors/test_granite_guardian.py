@@ -549,7 +549,7 @@ def test_request_to_chat_completion_request_empty_kwargs(granite_guardian_detect
     )
     assert type(chat_request) == ErrorResponse
     assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name for context analysis" in chat_request.message
+    assert "No risk_name or criteria_id for context analysis" in chat_request.message
 
 
 def test_request_to_chat_completion_request_empty_guardian_config(
@@ -569,7 +569,7 @@ def test_request_to_chat_completion_request_empty_guardian_config(
     )
     assert type(chat_request) == ErrorResponse
     assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name for context analysis" in chat_request.message
+    assert "No risk_name or criteria_id for context analysis" in chat_request.message
 
 
 def test_request_to_chat_completion_request_missing_risk_name(
@@ -592,7 +592,7 @@ def test_request_to_chat_completion_request_missing_risk_name(
     )
     assert type(chat_request) == ErrorResponse
     assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name for context analysis" in chat_request.message
+    assert "No risk_name or criteria_id for context analysis" in chat_request.message
 
 
 def test_request_to_chat_completion_request_unsupported_risk_name(
@@ -616,7 +616,8 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     assert type(chat_request) == ErrorResponse
     assert chat_request.code == HTTPStatus.BAD_REQUEST
     assert (
-        "risk_name foo is not compatible with context analysis" in chat_request.message
+        "risk_name or criteria_id foo is not compatible with context analysis"
+        in chat_request.message
     )
 
 
@@ -816,7 +817,7 @@ def test_context_analyze_unsupported_risk(
         assert type(detection_response) == ErrorResponse
         assert detection_response.code == HTTPStatus.BAD_REQUEST
         assert (
-            "risk_name boo is not compatible with context analysis"
+            "risk_name or criteria_id boo is not compatible with context analysis"
             in detection_response.message
         )
 
