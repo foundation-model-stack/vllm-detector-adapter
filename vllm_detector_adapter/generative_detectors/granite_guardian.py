@@ -109,7 +109,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         if custom_criteria := request.detector_params.pop("custom_criteria", None):
             guardian_config["custom_criteria"] = custom_criteria
         if custom_scoring_schema := request.detector_params.pop(
-            "custom_scoring_schem", None
+            "custom_scoring_schema", None
         ):
             guardian_config["custom_scoring_schema"] = custom_scoring_schema
         if guardian_config:
@@ -325,7 +325,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 {"role": "user", "content": content},
             ]
         else:
-            # Return error if risk names or criteriaare not expected ones
+            # Return error if risk names or criteria are not expected ones
             return ErrorResponse(
                 message="risk_name or criteria_id {} is not compatible with context analysis".format(
                     risk_name
