@@ -48,8 +48,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     USER_TEXT_PATTERN = "user_text"
 
     # Model specific tokens
-    SAFE_TOKEN = "No"
-    UNSAFE_TOKEN = "Yes"
+    SAFE_TOKEN = "no"
+    UNSAFE_TOKEN = "yes"
 
     # Risks associated with context analysis
     PROMPT_CONTEXT_ANALYSIS_RISKS = ["context_relevance"]

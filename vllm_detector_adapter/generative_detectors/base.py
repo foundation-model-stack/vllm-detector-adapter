@@ -217,9 +217,9 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
                 # per discussion with granite team. So we are pulling in `top_logprobs`
                 for top_logprob in logprob_info_i.top_logprobs:
                     token = top_logprob.token
-                    if token.strip().lower() == self.SAFE_TOKEN.lower():
+                    if token.strip().lower() == self.SAFE_TOKEN:
                         safe_token_prob += math.exp(top_logprob.logprob)
-                    if token.strip().lower() == self.UNSAFE_TOKEN.lower():
+                    if token.strip().lower() == self.UNSAFE_TOKEN:
                         unsafe_token_prob += math.exp(top_logprob.logprob)
 
             probabilities = torch.softmax(
