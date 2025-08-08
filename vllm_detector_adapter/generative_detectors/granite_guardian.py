@@ -40,7 +40,9 @@ class GraniteGuardianToolCallFunctionObject(TypedDict):
 
 
 class GraniteGuardian(ChatCompletionDetectionBase):
-
+    # Note: Earlier generations of Granite Guardian use 'risk' while Granite Guardian
+    # 3.3 refers to 'criteria' for generalization. For now, because the taxonomy is
+    # still characterized as a 'risk' taxonomy, the detection type remains.
     DETECTION_TYPE = "risk"
     # User text pattern in task template
     USER_TEXT_PATTERN = "user_text"
@@ -62,6 +64,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     INDENT = orjson.OPT_INDENT_2
 
     # Risk Bank name defined in the chat template
+    # Not actively used ref. https://github.com/foundation-model-stack/vllm-detector-adapter/issues/64
     RISK_BANK_VAR_NAME = "risk_bank"
 
     # Attributes to be put in metadata
@@ -87,7 +90,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         GenerationDetectionRequest,
         ErrorResponse,
     ]:
-        """Granite guardian specific parameter updates for risk name and risk definition"""
+        """Granite guardian specific parameter updates for risks/criteria"""
         # Validation that one of the 'defined' risks is requested will be
         # done through the chat template on each request. Errors will
         # be propagated for chat completion separately
@@ -95,13 +98,23 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         if not request.detector_params:
             return request
 
+        # Guardian 3.2 and earlier
         if risk_name := request.detector_params.pop("risk_name", None):
             guardian_config["risk_name"] = risk_name
         if risk_definition := request.detector_params.pop("risk_definition", None):
             guardian_config["risk_definition"] = risk_definition
+        # Guardian 3.3+
+        if criteria_id := request.detector_params.pop("criteria_id", None):
+            guardian_config["criteria_id"] = criteria_id
+        if custom_criteria := request.detector_params.pop("custom_criteria", None):
+            guardian_config["custom_criteria"] = custom_criteria
+        if custom_scoring_schema := request.detector_params.pop(
+            "custom_scoring_schema", None
+        ):
+            guardian_config["custom_scoring_schema"] = custom_scoring_schema
         if guardian_config:
             logger.debug("guardian_config {} provided for request", guardian_config)
-            # Move the risk name and/or risk definition to chat_template_kwargs
+            # Move the parameters to chat_template_kwargs
             # to be propagated to tokenizer.apply_chat_template during
             # chat completion
             if "chat_template_kwargs" in request.detector_params:
@@ -134,12 +147,30 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         if (
             "risk_name" not in request.detector_params
-            or request.detector_params["risk_name"] not in self.TOOLS_RISKS
+            and "criteria_id" not in request.detector_params
         ):
-            # Provide error here, since otherwise follow-on tools message
-            # and assistant message flattening will not be applicable
+            return ErrorResponse(
+                message="tools analysis is not supported without a given risk/criteria",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+        # Granite 3.2 and earlier
+        if (
+            "risk_name" in request.detector_params
+            and request.detector_params["risk_name"] not in self.TOOLS_RISKS
+        ):
             return ErrorResponse(
                 message="tools analysis is not supported with given risk",
+                type="BadRequestError",
+                code=HTTPStatus.BAD_REQUEST.value,
+            )
+        # Granite 3.3+
+        elif (
+            "criteria_id" in request.detector_params
+            and request.detector_params["criteria_id"] not in self.TOOLS_RISKS
+        ):
+            return ErrorResponse(
+                message="tools analysis is not supported with given criteria",
                 type="BadRequestError",
                 code=HTTPStatus.BAD_REQUEST.value,
             )
@@ -242,7 +273,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     def _request_to_chat_completion_request(
         self, request: ContextAnalysisRequest, model_name: str
     ) -> Union[ChatCompletionRequest, ErrorResponse]:
-        NO_RISK_NAME_MESSAGE = "No risk_name for context analysis"
+        NO_RISK_NAME_MESSAGE = "No risk_name or criteria_id for context analysis"
 
         risk_name = None
         if (
@@ -259,8 +290,10 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             "guardian_config"
         ]:
             if isinstance(guardian_config, dict):
-                risk_name = guardian_config.get("risk_name")
-        # Leaving off risk name can lead to model/template errors
+                risk_name = guardian_config.get("risk_name") or guardian_config.get(
+                    "criteria_id"
+                )
+        # Leaving off risk_name and criteria_id can lead to model/template errors
         if not risk_name:
             return ErrorResponse(
                 message=NO_RISK_NAME_MESSAGE,
@@ -292,9 +325,9 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 {"role": "user", "content": content},
             ]
         else:
-            # Return error if risk names are not expected ones
+            # Return error if risk names or criteria are not expected ones
             return ErrorResponse(
-                message="risk_name {} is not compatible with context analysis".format(
+                message="risk_name or criteria_id {} is not compatible with context analysis".format(
                     risk_name
                 ),
                 type="BadRequestError",
@@ -448,9 +481,17 @@ class GraniteGuardian(ChatCompletionDetectionBase):
 
         # If risk_name is not specifically provided for this endpoint, we will add a
         # risk_name, since the user has already decided to use this particular endpoint
+        # Granite Guardian 3.2 and earlier
         if "risk_name" not in request.detector_params:
             request.detector_params[
                 "risk_name"
+            ] = self.DEFAULT_GENERATION_DETECTION_RISK
+        # Granite Guardian 3.3+
+        # Generally the additional/repeated risk is not problematic
+        # This avoids having to verify Guardian version at this step
+        if "criteria_id" not in request.detector_params:
+            request.detector_params[
+                "criteria_id"
             ] = self.DEFAULT_GENERATION_DETECTION_RISK
 
         # Task template not applied for generation analysis at this time

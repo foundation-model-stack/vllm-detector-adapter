@@ -423,6 +423,44 @@ def test_preprocess_chat_request_with_detector_params(granite_guardian_detection
     }
 
 
+def test_preprocess_chat_request_with_custom_criteria_detector_params(
+    granite_guardian_detection,
+):
+    # Guardian 3.3+ parameters
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    detector_params = {
+        "custom_criteria": "Here is some custom criteria",
+        "custom_scoring_schema": "If text meets criteria say yes",
+        "foo": "bar",
+    }
+    initial_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            )
+        ],
+        detector_params=detector_params,
+    )
+    processed_request = granite_guardian_detection_instance.preprocess_request(
+        initial_request, fn_type=DetectorType.TEXT_CHAT
+    )
+    assert type(processed_request) == ChatDetectionRequest
+    # Processed request should not have these extra params
+    assert "custom_criteria" not in processed_request.detector_params
+    assert "custom_scoring_schema" not in processed_request.detector_params
+    assert "chat_template_kwargs" in processed_request.detector_params
+    assert (
+        "guardian_config" in processed_request.detector_params["chat_template_kwargs"]
+    )
+    guardian_config = processed_request.detector_params["chat_template_kwargs"][
+        "guardian_config"
+    ]
+    assert guardian_config == {
+        "custom_criteria": "Here is some custom criteria",
+        "custom_scoring_schema": "If text meets criteria say yes",
+    }
+
+
 def test_preprocess_chat_request_with_extra_chat_template_kwargs(
     granite_guardian_detection,
 ):
@@ -534,6 +572,41 @@ def test_request_to_chat_completion_request_response_analysis(
     )
 
 
+def test_request_to_chat_completion_request_response_analysis_criteria_id(
+    granite_guardian_detection,
+):
+    # Guardian 3.3 parameters
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    context_request = ContextAnalysisRequest(
+        content=CONTENT,
+        context_type="docs",
+        context=[CONTEXT_DOC],
+        detector_params={
+            "n": 3,
+            "chat_template_kwargs": {
+                "guardian_config": {"criteria_id": "groundedness"}
+            },
+        },
+    )
+    chat_request = (
+        granite_guardian_detection_instance._request_to_chat_completion_request(
+            context_request, MODEL_NAME, fn_type=DetectorType.TEXT_CONTEXT_DOC
+        )
+    )
+    assert type(chat_request) == ChatCompletionRequest
+    assert chat_request.messages[0]["role"] == "context"
+    assert chat_request.messages[0]["content"] == CONTEXT_DOC
+    assert chat_request.messages[1]["role"] == "assistant"
+    assert chat_request.messages[1]["content"] == CONTENT
+    assert chat_request.model == MODEL_NAME
+    # detector_paramas
+    assert chat_request.n == 3
+    assert (
+        chat_request.chat_template_kwargs["guardian_config"]["criteria_id"]
+        == "groundedness"
+    )
+
+
 def test_request_to_chat_completion_request_empty_kwargs(granite_guardian_detection):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     context_request = ContextAnalysisRequest(
@@ -549,7 +622,7 @@ def test_request_to_chat_completion_request_empty_kwargs(granite_guardian_detect
     )
     assert type(chat_request) == ErrorResponse
     assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name for context analysis" in chat_request.message
+    assert "No risk_name or criteria_id for context analysis" in chat_request.message
 
 
 def test_request_to_chat_completion_request_empty_guardian_config(
@@ -569,10 +642,10 @@ def test_request_to_chat_completion_request_empty_guardian_config(
     )
     assert type(chat_request) == ErrorResponse
     assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name for context analysis" in chat_request.message
+    assert "No risk_name or criteria_id for context analysis" in chat_request.message
 
 
-def test_request_to_chat_completion_request_missing_risk_name(
+def test_request_to_chat_completion_request_missing_risk_name_and_criteria_id(
     granite_guardian_detection,
 ):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
@@ -592,7 +665,7 @@ def test_request_to_chat_completion_request_missing_risk_name(
     )
     assert type(chat_request) == ErrorResponse
     assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name for context analysis" in chat_request.message
+    assert "No risk_name or criteria_id for context analysis" in chat_request.message
 
 
 def test_request_to_chat_completion_request_unsupported_risk_name(
@@ -616,7 +689,8 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
     assert type(chat_request) == ErrorResponse
     assert chat_request.code == HTTPStatus.BAD_REQUEST
     assert (
-        "risk_name foo is not compatible with context analysis" in chat_request.message
+        "risk_name or criteria_id foo is not compatible with context analysis"
+        in chat_request.message
     )
 
 
@@ -816,7 +890,7 @@ def test_context_analyze_unsupported_risk(
         assert type(detection_response) == ErrorResponse
         assert detection_response.code == HTTPStatus.BAD_REQUEST
         assert (
-            "risk_name boo is not compatible with context analysis"
+            "risk_name or criteria_id boo is not compatible with context analysis"
             in detection_response.message
         )
 
@@ -957,6 +1031,34 @@ def test_chat_detection_with_tools(
         ],
         tools=[TOOL],
         detector_params={"risk_name": "function_call", "n": 2},
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+
+
+def test_chat_detection_with_tools_criteria_id(
+    granite_guardian_detection, granite_guardian_completion_response
+):
+    # Guardian 3.3 parameters
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user",
+                content=USER_CONTENT_TOOLS,
+            ),
+            DetectionChatMessageParam(role="assistant", tool_calls=[TOOL_CALL]),
+        ],
+        tools=[TOOL],
+        detector_params={"criteria_id": "function_call", "n": 2},
     )
     with patch(
         "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
