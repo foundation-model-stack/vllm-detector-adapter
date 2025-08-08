@@ -423,7 +423,7 @@ def test_preprocess_chat_request_with_detector_params(granite_guardian_detection
     }
 
 
-def test_preprocess_chat_request_with_criteria_detector_params(
+def test_preprocess_chat_request_with_custom_criteria_detector_params(
     granite_guardian_detection,
 ):
     # Guardian 3.3+ parameters
