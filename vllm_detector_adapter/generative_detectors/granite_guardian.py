@@ -349,10 +349,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 code=HTTPStatus.BAD_REQUEST.value,
             )
 
-    def _extract_metadata(
+    def _extract_tag_info(
         self, response: ChatCompletionResponse, choice_index: int, content
     ):
-        """Extract metadata from content and update content as necessary"""
+        """Extract tag info from content and update content as necessary. This parses
+        relevant tags into metadata and updates response content as necessary."""
         # Avoid messing up metadata order in case content is not present
         metadata = {}
         if content and isinstance(content, str):
@@ -413,7 +414,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         metadata_list = []
         for i, choice in enumerate(response.choices):
             content = choice.message.content
-            metadata = self._extract_metadata(
+            metadata = self._extract_tag_info(
                 response, i, content
             )  # response could be updated
             metadata_list.append(metadata)

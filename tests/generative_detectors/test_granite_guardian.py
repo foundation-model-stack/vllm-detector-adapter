@@ -346,8 +346,7 @@ def test__extract_no_metadata(
     choice_index = 0
     content = granite_guardian_completion_response.choices[choice_index].message.content
     # NOTE: private function tested here
-
-    metadata = granite_guardian_detection_instance._extract_metadata(
+    metadata = granite_guardian_detection_instance._extract_tag_info(
         granite_guardian_completion_response, choice_index, content
     )
     assert metadata == {}
@@ -358,19 +357,17 @@ def test__extract_no_metadata(
     )
 
 
-def test__extract_metadata_with_confidence(
+def test__extract_tag_info_with_confidence(
     granite_guardian_detection, granite_guardian_completion_response_extra_content
 ):
-    # Starting Granite Guardian 3.2, info like confidence is provided
+    # In Granite Guardian 3.2, confidence info is provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
-
-    # NOTE: private function tested here
     choice_index = 0
     content = granite_guardian_completion_response_extra_content.choices[
         choice_index
     ].message.content
     # NOTE: private function tested here
-    metadata = granite_guardian_detection_instance._extract_metadata(
+    metadata = granite_guardian_detection_instance._extract_tag_info(
         granite_guardian_completion_response_extra_content, choice_index, content
     )
     assert metadata == {"confidence": "High"}
@@ -759,7 +756,7 @@ def test_post_process_completion_no_metadata(
 def test_post_process_completion_with_confidence(
     granite_guardian_detection, granite_guardian_completion_response_extra_content
 ):
-    # Starting Granite Guardian 3.2, info like confidence is provided
+    # In Granite Guardian 3.2, confidence info is provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     dummy_scores = [0.2, 0.2]
     (chat_completion_response, _, _, metadata_list) = asyncio.run(
