@@ -186,7 +186,7 @@ def granite_guardian_completion_response():
 
 # Initialized per function since response could be updated
 @pytest.fixture(scope="function")
-def granite_guardian_completion_response_extra_content():
+def granite_guardian_completion_response_3_2():
     log_probs_content_no = ChatCompletionLogProbsContent(
         token="No",
         logprob=-2.8,
@@ -235,6 +235,59 @@ def granite_guardian_completion_response_extra_content():
         model=MODEL_NAME,
         choices=[choice_0, choice_1],
         usage=UsageInfo(prompt_tokens=142, total_tokens=162, completion_tokens=20),
+    )
+
+
+@pytest.fixture(scope="function")
+def granite_guardian_completion_response_3_3_plus_no_think():
+    log_probs_content_yes = ChatCompletionLogProbsContent(
+        token=" yes",
+        logprob=0.00,
+        # 5 logprobs requested for scoring, skipping bytes for conciseness
+        top_logprobs=[
+            ChatCompletionLogProb(token=" yes", logprob=0.00),
+            ChatCompletionLogProb(token=" no", logprob=-13.25),
+            ChatCompletionLogProb(token="yes", logprob=-14.63),
+            ChatCompletionLogProb(token=" Yes", logprob=-16.37),
+            ChatCompletionLogProb(token=" yeah", logprob=-17.06),
+        ],
+    )
+    log_probs_content_random = ChatCompletionLogProbsContent(
+        token="<",
+        logprob=0.00,
+        # 5 logprobs requested for scoring, skipping bytes for conciseness
+        top_logprobs=[
+            ChatCompletionLogProb(token="<", logprob=0.00),
+            ChatCompletionLogProb(token="</", logprob=-17.88),
+            ChatCompletionLogProb(token="<!--", logprob=-18.25),
+            ChatCompletionLogProb(token="<!", logprob=-18.5),
+            ChatCompletionLogProb(token=" <", logprob=-18.5),
+        ],
+    )
+    choice_0 = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(
+            role="assistant",
+            content="<think>\n</think>\n<score> yes </score>",
+        ),
+        logprobs=ChatCompletionLogProbs(
+            content=[log_probs_content_yes, log_probs_content_random]
+        ),
+    )
+    choice_1 = ChatCompletionResponseChoice(
+        index=1,
+        message=ChatMessage(
+            role="assistant",
+            content="<think>\n</think>\n<score> yes </score>",
+        ),
+        logprobs=ChatCompletionLogProbs(
+            content=[log_probs_content_random, log_probs_content_yes]
+        ),
+    )
+    yield ChatCompletionResponse(
+        model=MODEL_NAME,
+        choices=[choice_0, choice_1],
+        usage=UsageInfo(prompt_tokens=124, total_tokens=172, completion_tokens=48),
     )
 
 
@@ -358,25 +411,46 @@ def test__extract_no_metadata(
 
 
 def test__extract_tag_info_with_confidence(
-    granite_guardian_detection, granite_guardian_completion_response_extra_content
+    granite_guardian_detection, granite_guardian_completion_response_3_2
 ):
     # In Granite Guardian 3.2, confidence info is provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     choice_index = 0
-    content = granite_guardian_completion_response_extra_content.choices[
+    content = granite_guardian_completion_response_3_2.choices[
         choice_index
     ].message.content
     # NOTE: private function tested here
     metadata = granite_guardian_detection_instance._extract_tag_info(
-        granite_guardian_completion_response_extra_content, choice_index, content
+        granite_guardian_completion_response_3_2, choice_index, content
     )
     assert metadata == {"confidence": "High"}
     # Content should be updated
     assert (
-        granite_guardian_completion_response_extra_content.choices[
+        granite_guardian_completion_response_3_2.choices[choice_index].message.content
+        == "No"
+    )
+
+
+def test__extract_tag_info_no_think_and_score(
+    granite_guardian_detection, granite_guardian_completion_response_3_3_plus_no_think
+):
+    # In Granite Guardian 3.3, think and score tags are provided
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    choice_index = 0
+    content = granite_guardian_completion_response_3_3_plus_no_think.choices[
+        choice_index
+    ].message.content
+    # NOTE: private function tested here
+    metadata = granite_guardian_detection_instance._extract_tag_info(
+        granite_guardian_completion_response_3_3_plus_no_think, choice_index, content
+    )
+    assert metadata == {}  # think is basically empty with the newline
+    # Content should be updated without the tags
+    assert (
+        granite_guardian_completion_response_3_3_plus_no_think.choices[
             choice_index
         ].message.content
-        == "No"
+        == "yes"
     )
 
 
@@ -754,14 +828,14 @@ def test_post_process_completion_no_metadata(
 
 
 def test_post_process_completion_with_confidence(
-    granite_guardian_detection, granite_guardian_completion_response_extra_content
+    granite_guardian_detection, granite_guardian_completion_response_3_2
 ):
     # In Granite Guardian 3.2, confidence info is provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     dummy_scores = [0.2, 0.2]
     (chat_completion_response, _, _, metadata_list) = asyncio.run(
         granite_guardian_detection_instance.post_process_completion_results(
-            granite_guardian_completion_response_extra_content, dummy_scores, "risk"
+            granite_guardian_completion_response_3_2, dummy_scores, "risk"
         )
     )
     assert len(metadata_list) == 2  # 2 choices
@@ -806,7 +880,7 @@ def test_context_analyze(
 
 
 def test_context_analyze_with_confidence(
-    granite_guardian_detection, granite_guardian_completion_response_extra_content
+    granite_guardian_detection, granite_guardian_completion_response_3_2
 ):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     context_request = ContextAnalysisRequest(
@@ -820,7 +894,7 @@ def test_context_analyze_with_confidence(
     )
     with patch(
         "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
-        return_value=granite_guardian_completion_response_extra_content,
+        return_value=granite_guardian_completion_response_3_2,
     ):
         detection_response = asyncio.run(
             granite_guardian_detection_instance.context_analyze(context_request)
@@ -924,7 +998,7 @@ def test_generation_analyze(
 
 
 def test_generation_analyze_with_confidence(
-    granite_guardian_detection, granite_guardian_completion_response_extra_content
+    granite_guardian_detection, granite_guardian_completion_response_3_2
 ):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     detection_request = GenerationDetectionRequest(
@@ -936,7 +1010,7 @@ def test_generation_analyze_with_confidence(
     )
     with patch(
         "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
-        return_value=granite_guardian_completion_response_extra_content,
+        return_value=granite_guardian_completion_response_3_2,
     ):
         detection_response = asyncio.run(
             granite_guardian_detection_instance.generation_analyze(detection_request)
@@ -982,7 +1056,7 @@ def test_chat_detection(
 
 
 def test_chat_detection_with_confidence(
-    granite_guardian_detection, granite_guardian_completion_response_extra_content
+    granite_guardian_detection, granite_guardian_completion_response_3_2
 ):
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     chat_request = ChatDetectionRequest(
@@ -994,7 +1068,7 @@ def test_chat_detection_with_confidence(
     )
     with patch(
         "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
-        return_value=granite_guardian_completion_response_extra_content,
+        return_value=granite_guardian_completion_response_3_2,
     ):
         detection_response = asyncio.run(
             granite_guardian_detection_instance.chat(chat_request)

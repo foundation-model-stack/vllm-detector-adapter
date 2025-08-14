@@ -360,20 +360,23 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         metadata = {}
         if content and isinstance(content, str):
             for attribute in self.TAG_METADATA_ATTRIBUTES + self.TAG_CONTENT_ATTRIBUTES:
-                regex_str = f"<{attribute}> (.*?) </{attribute}>"
+                regex_str = f"<{attribute}>(.*?)</{attribute}>"
                 # Some (older) Granite Guardian versions may not contain tags in content.
                 # Make sure this does not break anything
-                if attribute_search := re.search(regex_str, content):
+                if attribute_search := re.search(regex_str, content, re.DOTALL):
                     # Update choice content as necessary, removing the tagged portion
                     response.choices[choice_index].message.content = re.sub(
-                        regex_str, "", content
+                        regex_str,
+                        "",
+                        response.choices[choice_index].message.content,
+                        flags=re.DOTALL,
                     ).strip()
                     attribute_content = attribute_search.group(1).strip()
-                    if attribute in self.TAG_METADATA_ATTRIBUTES:
-                        # Log metadata
+                    if attribute in self.TAG_METADATA_ATTRIBUTES and attribute_content:
+                        # Log metadata but only if it's non-empty
                         metadata[attribute] = attribute_content
-                    else:
-                        # Content - put this on the choice
+                    elif attribute in self.TAG_CONTENT_ATTRIBUTES:
+                        # Content - put this (back) on the choice
                         response.choices[
                             choice_index
                         ].message.content += attribute_content
