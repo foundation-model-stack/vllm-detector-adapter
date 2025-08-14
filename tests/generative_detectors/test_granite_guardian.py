@@ -434,7 +434,7 @@ def test__extract_tag_info_with_confidence(
 def test__extract_tag_info_no_think_and_score(
     granite_guardian_detection, granite_guardian_completion_response_3_3_plus_no_think
 ):
-    # In Granite Guardian 3.3, think and score tags are provided
+    # In Granite Guardian 3.3+, think and score tags are provided
     granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
     choice_index = 0
     content = granite_guardian_completion_response_3_3_plus_no_think.choices[
@@ -823,8 +823,8 @@ def test_post_process_completion_no_metadata(
     assert metadata_list[0] == {}
     assert metadata_list[1] == {}
     # Chat completion response should be unchanged
-    chat_completion_response.choices[0].message.content == "Yes"
-    chat_completion_response.choices[1].message.content == "Yes"
+    assert chat_completion_response.choices[0].message.content == "Yes"
+    assert chat_completion_response.choices[1].message.content == "Yes"
 
 
 def test_post_process_completion_with_confidence(
@@ -842,8 +842,28 @@ def test_post_process_completion_with_confidence(
     assert metadata_list[0] == {"confidence": "High"}
     assert metadata_list[1] == {"confidence": "Low"}
     # Chat completion response should be updated
-    chat_completion_response.choices[0].message.content == "No"
-    chat_completion_response.choices[0].message.content == "Yes"
+    assert chat_completion_response.choices[0].message.content == "No"
+    assert chat_completion_response.choices[1].message.content == "Yes"
+
+
+def test_post_process_completion_with_no_think_and_score(
+    granite_guardian_detection, granite_guardian_completion_response_3_3_plus_no_think
+):
+    # In Granite Guardian 3.3+, think and score tags are provided
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    dummy_scores = [0.2, 0.2]
+    (chat_completion_response, _, _, metadata_list) = asyncio.run(
+        granite_guardian_detection_instance.post_process_completion_results(
+            granite_guardian_completion_response_3_3_plus_no_think, dummy_scores, "risk"
+        )
+    )
+    assert len(metadata_list) == 2  # 2 choices
+    # Empty think content
+    assert metadata_list[0] == {}
+    assert metadata_list[1] == {}
+    # Chat completion response should be updated
+    assert chat_completion_response.choices[0].message.content == "yes"
+    assert chat_completion_response.choices[1].message.content == "yes"
 
 
 #### Context analysis tests
