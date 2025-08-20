@@ -359,16 +359,17 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # Avoid messing up metadata order in case content is not present
         metadata = {}
         if content and isinstance(content, str):
+            content_updated = content # Content can get updated through the loop
             for attribute in self.TAG_METADATA_ATTRIBUTES + self.TAG_CONTENT_ATTRIBUTES:
                 regex_str = f"<{attribute}>(.*?)</{attribute}>"
                 # Some (older) Granite Guardian versions may not contain tags in content.
                 # Make sure this does not break anything
-                if attribute_search := re.search(regex_str, content, re.DOTALL):
+                if attribute_search := re.search(regex_str, content_updated, re.DOTALL):
                     # Update choice content as necessary, removing the tagged portion
                     response.choices[choice_index].message.content = re.sub(
                         regex_str,
                         "",
-                        response.choices[choice_index].message.content,
+                        content_updated,
                         flags=re.DOTALL,
                     ).strip()
                     attribute_content = attribute_search.group(1).strip()
@@ -380,6 +381,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                         response.choices[
                             choice_index
                         ].message.content += attribute_content
+                    content_updated = response.choices[choice_index].message.content
         return metadata
 
     ##### General overriding request / response processing functions ##################
