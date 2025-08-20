@@ -359,7 +359,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # Avoid messing up metadata order in case content is not present
         metadata = {}
         if content and isinstance(content, str):
-            content_updated = content # Content can get updated through the loop
+            content_updated = content  # Content can get updated through the loop
             for attribute in self.TAG_METADATA_ATTRIBUTES + self.TAG_CONTENT_ATTRIBUTES:
                 regex_str = f"<{attribute}>(.*?)</{attribute}>"
                 # Some (older) Granite Guardian versions may not contain tags in content.
@@ -377,7 +377,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                         # Log metadata but only if it's non-empty
                         metadata[attribute] = attribute_content
                     elif attribute in self.TAG_CONTENT_ATTRIBUTES:
-                        # Content - put this (back) on the choice
+                        # Content - put this (back) on the choice and becomes detection
                         response.choices[
                             choice_index
                         ].message.content += attribute_content
