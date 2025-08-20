@@ -48,8 +48,8 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     USER_TEXT_PATTERN = "user_text"
 
     # Model specific tokens
-    SAFE_TOKEN = "No"
-    UNSAFE_TOKEN = "Yes"
+    SAFE_TOKEN = "no"
+    UNSAFE_TOKEN = "yes"
 
     # Risks associated with context analysis
     PROMPT_CONTEXT_ANALYSIS_RISKS = ["context_relevance"]
@@ -67,8 +67,10 @@ class GraniteGuardian(ChatCompletionDetectionBase):
     # Not actively used ref. https://github.com/foundation-model-stack/vllm-detector-adapter/issues/64
     RISK_BANK_VAR_NAME = "risk_bank"
 
-    # Attributes to be put in metadata
-    METADATA_ATTRIBUTES = ["confidence"]
+    # Tag attributes to be put in metadata
+    TAG_METADATA_ATTRIBUTES = ["confidence", "think"]
+    # Tag attributes to be extracted from content
+    TAG_CONTENT_ATTRIBUTES = ["score"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -349,24 +351,37 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 code=HTTPStatus.BAD_REQUEST.value,
             )
 
-    def _extract_metadata(
+    def _extract_tag_info(
         self, response: ChatCompletionResponse, choice_index: int, content
     ):
-        """Extract metadata from content and update content as necessary"""
+        """Extract tag info from content and update content as necessary. This parses
+        relevant tags into metadata and updates response content as necessary."""
         # Avoid messing up metadata order in case content is not present
         metadata = {}
         if content and isinstance(content, str):
-            for metadata_attribute in self.METADATA_ATTRIBUTES:
-                regex_str = f"<{metadata_attribute}> (.*?) </{metadata_attribute}>"
-                # Some (older) Granite Guardian versions may not contain extra information
-                # for metadata. Make sure this does not break anything
-                if metadata_search := re.search(regex_str, content):
-                    # Update choice content as necessary, removing the metadata portion
+            content_updated = content  # Content can get updated through the loop
+            for attribute in self.TAG_METADATA_ATTRIBUTES + self.TAG_CONTENT_ATTRIBUTES:
+                regex_str = f"<{attribute}>(.*?)</{attribute}>"
+                # Some (older) Granite Guardian versions may not contain tags in content.
+                # Make sure this does not break anything
+                if attribute_search := re.search(regex_str, content_updated, re.DOTALL):
+                    # Update choice content as necessary, removing the tagged portion
                     response.choices[choice_index].message.content = re.sub(
-                        regex_str, "", content
+                        regex_str,
+                        "",
+                        content_updated,
+                        flags=re.DOTALL,
                     ).strip()
-                    metadata_content = metadata_search.group(1).strip()
-                    metadata[metadata_attribute] = metadata_content
+                    attribute_content = attribute_search.group(1).strip()
+                    if attribute in self.TAG_METADATA_ATTRIBUTES and attribute_content:
+                        # Log metadata but only if it's non-empty
+                        metadata[attribute] = attribute_content
+                    elif attribute in self.TAG_CONTENT_ATTRIBUTES:
+                        # Content - put this (back) on the choice and becomes detection
+                        response.choices[
+                            choice_index
+                        ].message.content += attribute_content
+                    content_updated = response.choices[choice_index].message.content
         return metadata
 
     ##### General overriding request / response processing functions ##################
@@ -413,7 +428,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         metadata_list = []
         for i, choice in enumerate(response.choices):
             content = choice.message.content
-            metadata = self._extract_metadata(
+            metadata = self._extract_tag_info(
                 response, i, content
             )  # response could be updated
             metadata_list.append(metadata)
