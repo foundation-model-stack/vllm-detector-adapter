@@ -39,6 +39,12 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:${BASE_UBI_IMAGE_TAG} as releas
 
 COPY --from=build --chown=1001 /app/target_packages /app/target_packages
 
+# Image hardening
+RUN --mount=type=bind,source=scripts/image_hardening,target=scripts \
+    sh scripts/installRemediationTools.sh && \
+    sh scripts/remediation-script.sh && \
+    sh scripts/removeRemediationTools.sh
+
 ENV SHARED_PACKAGE_PATH="/shared_packages/app/"
 
 # The entrypoint for this image is designed to follow its usage, i.e
