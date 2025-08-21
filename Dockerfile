@@ -53,3 +53,9 @@ ENTRYPOINT ["/bin/bash", "-c", "cp -r /app/target_packages/*  ${SHARED_PACKAGE_P
 FROM release as release_tgis_adapter
 
 COPY --from=build_tgis_adapter --chown=1001 /app/target_packages /app/target_packages
+
+# Image hardening
+RUN --mount=type=bind,source=scripts/image_hardening,target=scripts \
+    sh scripts/installRemediationTools.sh && \
+    sh scripts/remediation-script.sh && \
+    sh scripts/removeRemediationTools.sh
