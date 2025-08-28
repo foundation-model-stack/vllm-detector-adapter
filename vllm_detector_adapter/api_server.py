@@ -88,7 +88,6 @@ async def init_app_state_with_detectors(
         model_config=model_config,
         base_model_paths=base_model_paths,
         lora_modules=args.lora_modules,
-        prompt_adapters=args.prompt_adapters,
     )
 
     # Use vllm app state init
