@@ -137,7 +137,7 @@ async def run_server(args, **uvicorn_kwargs) -> None:
         )
 
     valid_reasoning_parses = ReasoningParserManager.reasoning_parsers.keys()
-    if args.enable_reasoning and args.reasoning_parser not in valid_reasoning_parses:
+    if args.reasoning_parser and args.reasoning_parser not in valid_reasoning_parses:
         raise KeyError(
             f"invalid reasoning parser: {args.reasoning_parser} "
             f"(chose from {{ {','.join(valid_reasoning_parses)} }})"
