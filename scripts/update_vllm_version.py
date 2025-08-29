@@ -37,12 +37,13 @@ def main():
         data = tomllib.load(f)
         # Find appropriate index
         vllm_deps = data["project"]["optional-dependencies"]["vllm"]
-        index = next((i for i, item in enumerate(vllm_deps) if item.startswith("vllm @")), None)
-        if not index:
-            print(f"vllm dependency to be overwritten is missing - skipping update")
+        vllm_git_index = next((i for i, item in enumerate(vllm_deps) if item.startswith("vllm @ git")), None)
+        vllm_darwin_index = next((i for i, item in enumerate(vllm_deps) if item.startswith("vllm>") or item.startswith("vllm=")), None)
+        if not vllm_git_index or not vllm_darwin_index:
+            print(f"vllm dependencies to be overwritten are missing - skipping update")
             sys.exit(0)
         current_version = parse_current_version(
-            vllm_string=vllm_deps[index]
+            vllm_string=vllm_deps[vllm_git_index]
         )
         if current_version == args.vllm_version:
             print(
@@ -53,10 +54,10 @@ def main():
             sys.exit(0)
         else:
             data["project"]["optional-dependencies"]["vllm"][
-                index
+                vllm_git_index
             ] = f"vllm @ git+https://github.com/vllm-project/vllm.git@v{args.vllm_version} ; sys_platform == 'darwin'"
             data["project"]["optional-dependencies"]["vllm"][
-                1
+                vllm_darwin_index
             ] = f"vllm=={args.vllm_version} ; sys_platform != 'darwin'"
 
             with open("pyproject.toml", "wb") as f:
