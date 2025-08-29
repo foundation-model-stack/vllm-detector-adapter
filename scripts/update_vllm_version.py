@@ -37,14 +37,22 @@ def main():
         data = tomllib.load(f)
         # Find appropriate index
         vllm_deps = data["project"]["optional-dependencies"]["vllm"]
-        vllm_git_index = next((i for i, item in enumerate(vllm_deps) if item.startswith("vllm @ git")), None)
-        vllm_darwin_index = next((i for i, item in enumerate(vllm_deps) if item.startswith("vllm>") or item.startswith("vllm=")), None)
+        vllm_git_index = next(
+            (i for i, item in enumerate(vllm_deps) if item.startswith("vllm @ git")),
+            None,
+        )
+        vllm_darwin_index = next(
+            (
+                i
+                for i, item in enumerate(vllm_deps)
+                if item.startswith("vllm>") or item.startswith("vllm=")
+            ),
+            None,
+        )
         if not vllm_git_index or not vllm_darwin_index:
             print(f"vllm dependencies to be overwritten are missing - skipping update")
             sys.exit(0)
-        current_version = parse_current_version(
-            vllm_string=vllm_deps[vllm_git_index]
-        )
+        current_version = parse_current_version(vllm_string=vllm_deps[vllm_git_index])
         if current_version == args.vllm_version:
             print(
                 f"VLLM already updated to latest version, skipping update and setting 'SKIP_VERSION' output!"
