@@ -88,7 +88,6 @@ async def init_app_state_with_detectors(
         model_config=model_config,
         base_model_paths=base_model_paths,
         lora_modules=args.lora_modules,
-        prompt_adapters=args.prompt_adapters,
     )
 
     # Use vllm app state init
@@ -137,7 +136,7 @@ async def run_server(args, **uvicorn_kwargs) -> None:
         )
 
     valid_reasoning_parses = ReasoningParserManager.reasoning_parsers.keys()
-    if args.enable_reasoning and args.reasoning_parser not in valid_reasoning_parses:
+    if args.reasoning_parser and args.reasoning_parser not in valid_reasoning_parses:
         raise KeyError(
             f"invalid reasoning parser: {args.reasoning_parser} "
             f"(chose from {{ {','.join(valid_reasoning_parses)} }})"
