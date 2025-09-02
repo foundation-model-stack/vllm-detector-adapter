@@ -45,6 +45,10 @@ RUN --mount=type=bind,source=scripts/image_hardening,target=scripts \
     sh scripts/remediation-script.sh && \
     sh scripts/removeRemediationTools.sh
 
+USER 1001
+
+HEALTHCHECK NONE
+
 ENV SHARED_PACKAGE_PATH="/shared_packages/app/"
 
 # The entrypoint for this image is designed to follow its usage, i.e
@@ -65,3 +69,7 @@ RUN --mount=type=bind,source=scripts/image_hardening,target=scripts \
     sh scripts/installRemediationTools.sh && \
     sh scripts/remediation-script.sh && \
     sh scripts/removeRemediationTools.sh
+
+USER 1001
+
+HEALTHCHECK NONE
