@@ -120,9 +120,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
                 # Avoid overwriting other existent chat_template_kwargs
                 request.detector_params["chat_template_kwargs"]["think"] = think
             else:
-                request.detector_params["chat_template_kwargs"] = {
-                    "think": think
-                }
+                request.detector_params["chat_template_kwargs"] = {"think": think}
 
         if guardian_config:
             logger.debug("guardian_config {} provided for request", guardian_config)

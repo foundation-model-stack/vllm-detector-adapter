@@ -291,6 +291,7 @@ def granite_guardian_completion_response_3_3_plus_no_think():
         usage=UsageInfo(prompt_tokens=124, total_tokens=172, completion_tokens=48),
     )
 
+
 @pytest.fixture(scope="function")
 def granite_guardian_completion_response_3_3_plus_think():
     """Granite Guardian 3.3+ response with think/trace output"""
