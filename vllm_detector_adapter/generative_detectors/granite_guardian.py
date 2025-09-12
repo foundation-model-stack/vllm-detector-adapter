@@ -105,6 +105,7 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             guardian_config["risk_name"] = risk_name
         if risk_definition := request.detector_params.pop("risk_definition", None):
             guardian_config["risk_definition"] = risk_definition
+
         # Guardian 3.3+
         if criteria_id := request.detector_params.pop("criteria_id", None):
             guardian_config["criteria_id"] = criteria_id
@@ -114,6 +115,13 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             "custom_scoring_schema", None
         ):
             guardian_config["custom_scoring_schema"] = custom_scoring_schema
+        if think := request.detector_params.pop("think", None):
+            if "chat_template_kwargs" in request.detector_params:
+                # Avoid overwriting other existent chat_template_kwargs
+                request.detector_params["chat_template_kwargs"]["think"] = think
+            else:
+                request.detector_params["chat_template_kwargs"] = {"think": think}
+
         if guardian_config:
             logger.debug("guardian_config {} provided for request", guardian_config)
             # Move the parameters to chat_template_kwargs

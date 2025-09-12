@@ -292,6 +292,60 @@ def granite_guardian_completion_response_3_3_plus_no_think():
     )
 
 
+@pytest.fixture(scope="function")
+def granite_guardian_completion_response_3_3_plus_think():
+    """Granite Guardian 3.3+ response with think/trace output"""
+    log_probs_content_yes = ChatCompletionLogProbsContent(
+        token=" yes",
+        logprob=0.00,
+        # 5 logprobs requested for scoring, skipping bytes for conciseness
+        top_logprobs=[
+            ChatCompletionLogProb(token=" yes", logprob=0.00),
+            ChatCompletionLogProb(token="yes", logprob=-14.00),
+            ChatCompletionLogProb(token=" '", logprob=-14.43),
+            ChatCompletionLogProb(token=" indeed", logprob=-14.93),
+            ChatCompletionLogProb(token=" Yes", logprob=-15.56),
+        ],
+    )
+    log_probs_content_random = ChatCompletionLogProbsContent(
+        token="<",
+        logprob=0.00,
+        # 5 logprobs requested for scoring, skipping bytes for conciseness
+        top_logprobs=[
+            ChatCompletionLogProb(token="<", logprob=0.00),
+            ChatCompletionLogProb(token="First", logprob=-12.12),
+            ChatCompletionLogProb(token="The", logprob=-13.63),
+            ChatCompletionLogProb(token=" <", logprob=-13.87),
+            ChatCompletionLogProb(token=" First", logprob=-16.43),
+        ],
+    )
+    choice_0 = ChatCompletionResponseChoice(
+        index=0,
+        message=ChatMessage(
+            role="assistant",
+            content="<think> First analyzing the user request...there is a risk associated, so the score is yes.\n</think>\n<score> yes </score>",
+        ),
+        logprobs=ChatCompletionLogProbs(
+            content=[log_probs_content_yes, log_probs_content_random]
+        ),
+    )
+    choice_1 = ChatCompletionResponseChoice(
+        index=1,
+        message=ChatMessage(
+            role="assistant",
+            content="<think> Since there is no risk associated, the score is no.\n</think>\n<score> no </score>",
+        ),
+        logprobs=ChatCompletionLogProbs(
+            content=[log_probs_content_random, log_probs_content_yes]
+        ),
+    )
+    yield ChatCompletionResponse(
+        model=MODEL_NAME,
+        choices=[choice_0, choice_1],
+        usage=UsageInfo(prompt_tokens=122, total_tokens=910, completion_tokens=788),
+    )
+
+
 ### Tests #####################################################################
 
 #### Private tools request tests
@@ -450,6 +504,31 @@ def test__extract_tag_info_no_think_result_and_score(
     # Content should be updated without the tags
     assert (
         granite_guardian_completion_response_3_3_plus_no_think.choices[
+            choice_index
+        ].message.content
+        == "yes"
+    )
+
+
+def test__extract_tag_info_think_result_and_score(
+    granite_guardian_detection, granite_guardian_completion_response_3_3_plus_think
+):
+    # In Granite Guardian 3.3+, think and score tags are provided
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    choice_index = 0
+    content = granite_guardian_completion_response_3_3_plus_think.choices[
+        choice_index
+    ].message.content
+    # NOTE: private function tested here
+    metadata = granite_guardian_detection_instance._extract_tag_info(
+        granite_guardian_completion_response_3_3_plus_think, choice_index, content
+    )
+    assert metadata == {
+        "think": "First analyzing the user request...there is a risk associated, so the score is yes."
+    }
+    # Content should be updated without the tags
+    assert (
+        granite_guardian_completion_response_3_3_plus_think.choices[
             choice_index
         ].message.content
         == "yes"
@@ -869,6 +948,30 @@ def test_post_process_completion_with_no_think_result_and_score(
     assert chat_completion_response.choices[1].message.content == "yes"
 
 
+def test_post_process_completion_with_think_result_and_score(
+    granite_guardian_detection, granite_guardian_completion_response_3_3_plus_think
+):
+    # In Granite Guardian 3.3+, think and score tags are provided
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    dummy_scores = [0.2, 0.2]
+    (chat_completion_response, _, _, metadata_list) = asyncio.run(
+        granite_guardian_detection_instance.post_process_completion_results(
+            granite_guardian_completion_response_3_3_plus_think, dummy_scores, "risk"
+        )
+    )
+    assert len(metadata_list) == 2  # 2 choices
+    # Think content
+    assert metadata_list[0] == {
+        "think": "First analyzing the user request...there is a risk associated, so the score is yes."
+    }
+    assert metadata_list[1] == {
+        "think": "Since there is no risk associated, the score is no."
+    }
+    # Chat completion response should be updated
+    assert chat_completion_response.choices[0].message.content == "yes"
+    assert chat_completion_response.choices[1].message.content == "no"
+
+
 #### Context analysis tests
 
 
@@ -1143,6 +1246,43 @@ def test_chat_detection_with_no_think_and_score_results(
         assert detection_1["detection_type"] == "risk"
         assert pytest.approx(detection_1["score"]) == 0.9999982
         assert detection_1["metadata"] == {}
+
+
+def test_chat_detection_with_think_and_score_results(
+    granite_guardian_detection, granite_guardian_completion_response_3_3_plus_think
+):
+    granite_guardian_detection_instance = asyncio.run(granite_guardian_detection)
+    chat_request = ChatDetectionRequest(
+        messages=[
+            DetectionChatMessageParam(
+                role="user", content="How do I figure out how to break into a house?"
+            )
+        ]
+    )
+    with patch(
+        "vllm_detector_adapter.generative_detectors.granite_guardian.GraniteGuardian.create_chat_completion",
+        return_value=granite_guardian_completion_response_3_3_plus_think,
+    ):
+        detection_response = asyncio.run(
+            granite_guardian_detection_instance.chat(chat_request)
+        )
+        assert type(detection_response) == DetectionResponse
+        detections = detection_response.model_dump()
+        assert len(detections) == 2  # 2 choices
+        detection_0 = detections[0]
+        assert detection_0["detection"] == "yes"
+        assert detection_0["detection_type"] == "risk"
+        assert pytest.approx(detection_0["score"]) == 1.0
+        assert detection_0["metadata"] == {
+            "think": "First analyzing the user request...there is a risk associated, so the score is yes."
+        }
+        detection_1 = detections[1]
+        assert detection_1["detection"] == "no"
+        assert detection_1["detection_type"] == "risk"
+        assert pytest.approx(detection_1["score"]) == 1.0
+        assert detection_1["metadata"] == {
+            "think": "Since there is no risk associated, the score is no."
+        }
 
 
 def test_chat_detection_with_tools(
