@@ -215,7 +215,7 @@ async def create_chat_detection(request: ChatDetectionRequest, raw_request: Requ
     if isinstance(detector_response, ErrorResponse):
         # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(),
+            content=detector_response.error.model_dump(),
             status_code=detector_response.error.code,
         )
 
@@ -238,7 +238,7 @@ async def create_context_doc_detection(
     if isinstance(detector_response, ErrorResponse):
         # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(),
+            content=detector_response.error.model_dump(),
             status_code=detector_response.error.code,
         )
 
@@ -260,7 +260,7 @@ async def create_contents_detection(
     if isinstance(detector_response, ErrorResponse):
         # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(),
+            content=detector_response.error.model_dump(),
             status_code=detector_response.error.code,
         )
 
@@ -282,7 +282,7 @@ async def create_generation_detection(
     if isinstance(detector_response, ErrorResponse):
         # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(),
+            content=detector_response.error.model_dump(),
             status_code=detector_response.error.code,
         )
 
