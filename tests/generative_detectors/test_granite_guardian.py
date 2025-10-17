@@ -414,10 +414,10 @@ def test__make_tools_request_no_tool_calls(granite_guardian_detection):
     )
     processed_request = granite_guardian_detection_instance._make_tools_request(request)
     assert type(processed_request) == ErrorResponse
-    assert processed_request.code == HTTPStatus.BAD_REQUEST
+    assert processed_request.error.code == HTTPStatus.BAD_REQUEST
     assert (
         "no assistant message was provided with tool_calls for analysis"
-        in processed_request.message
+        in processed_request.error.message
     )
 
 
@@ -437,9 +437,10 @@ def test__make_tools_request_random_risk(granite_guardian_detection):
     )
     processed_request = granite_guardian_detection_instance._make_tools_request(request)
     assert type(processed_request) == ErrorResponse
-    assert processed_request.code == HTTPStatus.BAD_REQUEST
+    assert processed_request.error.code == HTTPStatus.BAD_REQUEST
     assert (
-        "tools analysis is not supported with given risk" in processed_request.message
+        "tools analysis is not supported with given risk"
+        in processed_request.error.message
     )
 
 
@@ -773,8 +774,10 @@ def test_request_to_chat_completion_request_empty_kwargs(granite_guardian_detect
         )
     )
     assert type(chat_request) == ErrorResponse
-    assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name or criteria_id for context analysis" in chat_request.message
+    assert chat_request.error.code == HTTPStatus.BAD_REQUEST
+    assert (
+        "No risk_name or criteria_id for context analysis" in chat_request.error.message
+    )
 
 
 def test_request_to_chat_completion_request_empty_guardian_config(
@@ -793,8 +796,10 @@ def test_request_to_chat_completion_request_empty_guardian_config(
         )
     )
     assert type(chat_request) == ErrorResponse
-    assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name or criteria_id for context analysis" in chat_request.message
+    assert chat_request.error.code == HTTPStatus.BAD_REQUEST
+    assert (
+        "No risk_name or criteria_id for context analysis" in chat_request.error.message
+    )
 
 
 def test_request_to_chat_completion_request_missing_risk_name_and_criteria_id(
@@ -816,8 +821,10 @@ def test_request_to_chat_completion_request_missing_risk_name_and_criteria_id(
         )
     )
     assert type(chat_request) == ErrorResponse
-    assert chat_request.code == HTTPStatus.BAD_REQUEST
-    assert "No risk_name or criteria_id for context analysis" in chat_request.message
+    assert chat_request.error.code == HTTPStatus.BAD_REQUEST
+    assert (
+        "No risk_name or criteria_id for context analysis" in chat_request.error.message
+    )
 
 
 def test_request_to_chat_completion_request_unsupported_risk_name(
@@ -839,10 +846,10 @@ def test_request_to_chat_completion_request_unsupported_risk_name(
         )
     )
     assert type(chat_request) == ErrorResponse
-    assert chat_request.code == HTTPStatus.BAD_REQUEST
+    assert chat_request.error.code == HTTPStatus.BAD_REQUEST
     assert (
         "risk_name or criteria_id foo is not compatible with context analysis"
-        in chat_request.message
+        in chat_request.error.message
     )
 
 
@@ -1085,10 +1092,10 @@ def test_context_analyze_unsupported_risk(
             granite_guardian_detection_instance.context_analyze(context_request)
         )
         assert type(detection_response) == ErrorResponse
-        assert detection_response.code == HTTPStatus.BAD_REQUEST
+        assert detection_response.error.code == HTTPStatus.BAD_REQUEST
         assert (
             "risk_name or criteria_id boo is not compatible with context analysis"
-            in detection_response.message
+            in detection_response.error.message
         )
 
 
@@ -1395,8 +1402,8 @@ def test_chat_detection_errors_on_stream(granite_guardian_detection):
         granite_guardian_detection_instance.chat(chat_request)
     )
     assert type(detection_response) == ErrorResponse
-    assert detection_response.code == HTTPStatus.BAD_REQUEST.value
-    assert "streaming is not supported" in detection_response.message
+    assert detection_response.error.code == HTTPStatus.BAD_REQUEST.value
+    assert "streaming is not supported" in detection_response.error.message
 
 
 def test_chat_detection_errors_on_jinja_template_error(granite_guardian_detection):
@@ -1414,8 +1421,8 @@ def test_chat_detection_errors_on_jinja_template_error(granite_guardian_detectio
             granite_guardian_detection_instance.chat(chat_request)
         )
         assert type(detection_response) == ErrorResponse
-        assert detection_response.code == HTTPStatus.BAD_REQUEST.value
-        assert "Template error" in detection_response.message
+        assert detection_response.error.code == HTTPStatus.BAD_REQUEST.value
+        assert "Template error" in detection_response.error.message
 
 
 def test_chat_detection_errors_on_undefined_jinja_error(granite_guardian_detection):
@@ -1433,8 +1440,8 @@ def test_chat_detection_errors_on_undefined_jinja_error(granite_guardian_detecti
             granite_guardian_detection_instance.chat(chat_request)
         )
         assert type(detection_response) == ErrorResponse
-        assert detection_response.code == HTTPStatus.BAD_REQUEST.value
-        assert "Template error" in detection_response.message
+        assert detection_response.error.code == HTTPStatus.BAD_REQUEST.value
+        assert "Template error" in detection_response.error.message
 
 
 def test_risk_bank_extraction(granite_guardian_detection):

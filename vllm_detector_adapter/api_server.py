@@ -215,7 +215,8 @@ async def create_chat_detection(request: ChatDetectionRequest, raw_request: Requ
     if isinstance(detector_response, ErrorResponse):
         # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(), status_code=detector_response.code
+            content=detector_response.model_dump(),
+            status_code=detector_response.error.code,
         )
 
     elif isinstance(detector_response, DetectionResponse):
@@ -237,7 +238,8 @@ async def create_context_doc_detection(
     if isinstance(detector_response, ErrorResponse):
         # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(), status_code=detector_response.code
+            content=detector_response.model_dump(),
+            status_code=detector_response.error.code,
         )
 
     elif isinstance(detector_response, DetectionResponse):
@@ -258,7 +260,8 @@ async def create_contents_detection(
     if isinstance(detector_response, ErrorResponse):
         # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(), status_code=detector_response.code
+            content=detector_response.model_dump(),
+            status_code=detector_response.error.code,
         )
 
     elif isinstance(detector_response, ContentsDetectionResponse):
@@ -279,7 +282,8 @@ async def create_generation_detection(
     if isinstance(detector_response, ErrorResponse):
         # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(), status_code=detector_response.code
+            content=detector_response.model_dump(),
+            status_code=detector_response.error.code,
         )
 
     elif isinstance(detector_response, DetectionResponse):

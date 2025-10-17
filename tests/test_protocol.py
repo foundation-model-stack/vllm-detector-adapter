@@ -251,9 +251,9 @@ def test_response_from_single_content_detection_missing_content():
     assert type(detection_response) == ErrorResponse
     assert (
         "Choice 0 from chat completion does not have content"
-        in detection_response.message
+        in detection_response.error.message
     )
-    assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+    assert detection_response.error.code == HTTPStatus.BAD_REQUEST.value
 
 
 #### General detection response tests
@@ -355,9 +355,9 @@ def test_response_from_completion_response_missing_content():
     assert type(detection_response) == ErrorResponse
     assert (
         "Choice 1 from chat completion does not have content"
-        in detection_response.message
+        in detection_response.error.message
     )
-    assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+    assert detection_response.error.code == HTTPStatus.BAD_REQUEST.value
 
 
 def test_response_from_empty_string_content_detection():
@@ -388,6 +388,6 @@ def test_response_from_empty_string_content_detection():
     assert type(detection_response) == ErrorResponse
     assert (
         "Choice 0 from chat completion does not have content"
-        in detection_response.message
+        in detection_response.error.message
     )
-    assert detection_response.code == HTTPStatus.BAD_REQUEST.value
+    assert detection_response.error.code == HTTPStatus.BAD_REQUEST.value

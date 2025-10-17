@@ -375,7 +375,7 @@ def test_chat_detection_with_tools(llama_guard_detection):
     )
     response = asyncio.run(llama_guard_detection_instance.chat(chat_request))
     assert type(response) == ErrorResponse
-    assert response.code == HTTPStatus.NOT_IMPLEMENTED
+    assert response.error.code == HTTPStatus.NOT_IMPLEMENTED
 
 
 def test_context_analyze(llama_guard_detection):
@@ -392,7 +392,7 @@ def test_context_analyze(llama_guard_detection):
         llama_guard_detection_instance.context_analyze(context_request)
     )
     assert type(response) == ErrorResponse
-    assert response.code == HTTPStatus.NOT_IMPLEMENTED
+    assert response.error.code == HTTPStatus.NOT_IMPLEMENTED
 
 
 def test_generation_analyze(llama_guard_detection, llama_guard_completion_response):
