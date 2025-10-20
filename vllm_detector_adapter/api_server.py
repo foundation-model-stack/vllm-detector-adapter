@@ -6,7 +6,8 @@ import signal
 
 # Third Party
 from fastapi import Request
-from fastapi.responses import JSONResponse, RequestValidationError
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette.datastructures import State
 from vllm.config import ModelConfig
 from vllm.engine.protocol import EngineClient
