@@ -1,5 +1,6 @@
 # Standard
 from argparse import Namespace
+from http import HTTPStatus
 import inspect
 import signal
 
@@ -14,7 +15,7 @@ from vllm.entrypoints.launcher import serve_http
 from vllm.entrypoints.logger import RequestLogger
 from vllm.entrypoints.openai import api_server
 from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
-from vllm.entrypoints.openai.protocol import ErrorResponse
+from vllm.entrypoints.openai.protocol import ErrorInfo, ErrorResponse
 from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
 from vllm.entrypoints.openai.tool_parsers import ToolParserManager
 from vllm.utils import FlexibleArgumentParser, is_valid_ipv6_address, set_ulimit
@@ -173,8 +174,26 @@ async def run_server(args, **uvicorn_kwargs) -> None:
                 return JSONResponse(
                     status_code=exc.error.code, content=exc.error.model_dump()
                 )
-            # For other routes, let FastAPI handle normally
-            raise exc
+            else:
+                # vLLM general request validation error handling
+                exc_str = str(exc)
+                errors_str = str(exc.errors())
+
+                if exc.errors() and errors_str and errors_str != exc_str:
+                    message = f"{exc_str} {errors_str}"
+                else:
+                    message = exc_str
+
+                err = ErrorResponse(
+                    error=ErrorInfo(
+                        message=message,
+                        type=HTTPStatus.BAD_REQUEST.phrase,
+                        code=HTTPStatus.BAD_REQUEST,
+                    )
+                )
+                return JSONResponse(
+                    err.model_dump(), status_code=HTTPStatus.BAD_REQUEST
+                )
 
         # api_server.init_app_state takes vllm_config
         # ref. https://github.com/vllm-project/vllm/pull/16572
