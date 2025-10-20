@@ -5,7 +5,7 @@ import signal
 
 # Third Party
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RequestValidationError
 from starlette.datastructures import State
 from vllm.config import ModelConfig
 from vllm.engine.protocol import EngineClient
@@ -40,6 +40,7 @@ try:
 except ImportError:
     # Third Party
     from vllm.reasoning import ReasoningParserManager
+
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 
@@ -162,6 +163,19 @@ async def run_server(args, **uvicorn_kwargs) -> None:
         # Use vllm build_app which adds middleware
         app = api_server.build_app(args)
 
+        # Override exception handler to flatten errors for detectors API
+        @app.exception_handler(RequestValidationError)
+        async def validation_exception_handler(
+            request: Request, exc: RequestValidationError
+        ):
+            if request.url.path.startswith("/api/v1/text"):
+                # Flatten Pydantic validation errors
+                return JSONResponse(
+                    status_code=exc.error.code, content=exc.error.model_dump()
+                )
+            # For other routes, let FastAPI handle normally
+            raise exc
+
         # api_server.init_app_state takes vllm_config
         # ref. https://github.com/vllm-project/vllm/pull/16572
         if hasattr(engine_client, "get_vllm_config"):
@@ -213,7 +227,6 @@ async def create_chat_detection(request: ChatDetectionRequest, raw_request: Requ
     detector_response = await chat_detection(raw_request).chat(request, raw_request)
 
     if isinstance(detector_response, ErrorResponse):
-        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
             content=detector_response.error.model_dump(),
             status_code=detector_response.error.code,
@@ -236,7 +249,6 @@ async def create_context_doc_detection(
     )
 
     if isinstance(detector_response, ErrorResponse):
-        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
             content=detector_response.error.model_dump(),
             status_code=detector_response.error.code,
@@ -258,7 +270,6 @@ async def create_contents_detection(
         request, raw_request
     )
     if isinstance(detector_response, ErrorResponse):
-        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
             content=detector_response.error.model_dump(),
             status_code=detector_response.error.code,
@@ -280,7 +291,6 @@ async def create_generation_detection(
         request, raw_request
     )
     if isinstance(detector_response, ErrorResponse):
-        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
             content=detector_response.error.model_dump(),
             status_code=detector_response.error.code,
