@@ -49,7 +49,7 @@ def main():
             ),
             None,
         )
-        if not vllm_git_index or not vllm_darwin_index:
+        if vllm_git_index is None or vllm_darwin_index is None:
             print(f"vllm dependencies to be overwritten are missing - skipping update")
             sys.exit(0)
         current_version = parse_current_version(vllm_string=vllm_deps[vllm_git_index])
