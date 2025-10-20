@@ -170,30 +170,30 @@ async def run_server(args, **uvicorn_kwargs) -> None:
         async def validation_exception_handler(
             request: Request, exc: RequestValidationError
         ):
+            exc_str = str(exc)
+            errors_str = str(exc.errors())
+            message = None
+            if exc.errors() and errors_str and errors_str != exc_str:
+                message = f"{exc_str} {errors_str}"
+            else:
+                message = exc_str
+
+            error_info = ErrorInfo(
+                message=message,
+                type=HTTPStatus.BAD_REQUEST.phrase,
+                code=HTTPStatus.BAD_REQUEST,
+            )
+
             if request.url.path.startswith("/api/v1/text"):
-                # Flatten Pydantic validation errors
+                # Flatten detectors API request validation errors
                 return JSONResponse(
-                    status_code=exc.error.code, content=exc.error.model_dump()
+                    content=error_info.model_dump(), status_code=HTTPStatus.BAD_REQUEST
                 )
             else:
                 # vLLM general request validation error handling
-                exc_str = str(exc)
-                errors_str = str(exc.errors())
-
-                if exc.errors() and errors_str and errors_str != exc_str:
-                    message = f"{exc_str} {errors_str}"
-                else:
-                    message = exc_str
-
-                err = ErrorResponse(
-                    error=ErrorInfo(
-                        message=message,
-                        type=HTTPStatus.BAD_REQUEST.phrase,
-                        code=HTTPStatus.BAD_REQUEST,
-                    )
-                )
+                err = ErrorResponse(error=error_info)
                 return JSONResponse(
-                    err.model_dump(), status_code=HTTPStatus.BAD_REQUEST
+                    content=err.model_dump(), status_code=HTTPStatus.BAD_REQUEST
                 )
 
         # api_server.init_app_state takes vllm_config
