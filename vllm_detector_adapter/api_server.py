@@ -1,10 +1,12 @@
 # Standard
 from argparse import Namespace
+from http import HTTPStatus
 import inspect
 import signal
 
 # Third Party
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.datastructures import State
 from vllm.config import ModelConfig
@@ -14,7 +16,7 @@ from vllm.entrypoints.launcher import serve_http
 from vllm.entrypoints.logger import RequestLogger
 from vllm.entrypoints.openai import api_server
 from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
-from vllm.entrypoints.openai.protocol import ErrorResponse
+from vllm.entrypoints.openai.protocol import ErrorInfo, ErrorResponse
 from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
 from vllm.entrypoints.openai.tool_parsers import ToolParserManager
 from vllm.utils import FlexibleArgumentParser, is_valid_ipv6_address, set_ulimit
@@ -40,6 +42,7 @@ try:
 except ImportError:
     # Third Party
     from vllm.reasoning import ReasoningParserManager
+
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 
@@ -162,6 +165,37 @@ async def run_server(args, **uvicorn_kwargs) -> None:
         # Use vllm build_app which adds middleware
         app = api_server.build_app(args)
 
+        # Override exception handler to flatten errors for detectors API
+        @app.exception_handler(RequestValidationError)
+        async def validation_exception_handler(
+            request: Request, exc: RequestValidationError
+        ):
+            exc_str = str(exc)
+            errors_str = str(exc.errors())
+            message = None
+            if exc.errors() and errors_str and errors_str != exc_str:
+                message = f"{exc_str} {errors_str}"
+            else:
+                message = exc_str
+
+            error_info = ErrorInfo(
+                message=message,
+                type=HTTPStatus.BAD_REQUEST.phrase,
+                code=HTTPStatus.BAD_REQUEST,
+            )
+
+            if request.url.path.startswith("/api/v1/text"):
+                # Flatten detectors API request validation errors
+                return JSONResponse(
+                    content=error_info.model_dump(), status_code=HTTPStatus.BAD_REQUEST
+                )
+            else:
+                # vLLM general request validation error handling
+                err = ErrorResponse(error=error_info)
+                return JSONResponse(
+                    content=err.model_dump(), status_code=HTTPStatus.BAD_REQUEST
+                )
+
         # api_server.init_app_state takes vllm_config
         # ref. https://github.com/vllm-project/vllm/pull/16572
         if hasattr(engine_client, "get_vllm_config"):
@@ -213,9 +247,9 @@ async def create_chat_detection(request: ChatDetectionRequest, raw_request: Requ
     detector_response = await chat_detection(raw_request).chat(request, raw_request)
 
     if isinstance(detector_response, ErrorResponse):
-        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(), status_code=detector_response.code
+            content=detector_response.error.model_dump(),
+            status_code=detector_response.error.code,
         )
 
     elif isinstance(detector_response, DetectionResponse):
@@ -235,9 +269,9 @@ async def create_context_doc_detection(
     )
 
     if isinstance(detector_response, ErrorResponse):
-        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(), status_code=detector_response.code
+            content=detector_response.error.model_dump(),
+            status_code=detector_response.error.code,
         )
 
     elif isinstance(detector_response, DetectionResponse):
@@ -256,9 +290,9 @@ async def create_contents_detection(
         request, raw_request
     )
     if isinstance(detector_response, ErrorResponse):
-        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(), status_code=detector_response.code
+            content=detector_response.error.model_dump(),
+            status_code=detector_response.error.code,
         )
 
     elif isinstance(detector_response, ContentsDetectionResponse):
@@ -277,9 +311,9 @@ async def create_generation_detection(
         request, raw_request
     )
     if isinstance(detector_response, ErrorResponse):
-        # ErrorResponse includes code and message, corresponding to errors for the detectorAPI
         return JSONResponse(
-            content=detector_response.model_dump(), status_code=detector_response.code
+            content=detector_response.error.model_dump(),
+            status_code=detector_response.error.code,
         )
 
     elif isinstance(detector_response, DetectionResponse):

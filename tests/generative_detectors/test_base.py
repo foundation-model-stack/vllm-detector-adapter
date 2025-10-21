@@ -237,5 +237,5 @@ def test_content_analysis_errorresponse_verification(detection_base):
         result = asyncio.run(base_instance.content_analysis(content_request))
 
         assert isinstance(result, ErrorResponse)
-        assert result.type == "BadRequestError"
-        assert "does not have content" in result.message
+        assert result.error.type == "BadRequestError"
+        assert "does not have content" in result.error.message

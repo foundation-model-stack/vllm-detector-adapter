@@ -12,6 +12,7 @@ from jinja2.exceptions import TemplateError
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionResponse,
+    ErrorInfo,
     ErrorResponse,
 )
 from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
@@ -156,9 +157,11 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         # Tools detection is not generalized
         if request.tools:
             return ErrorResponse(
-                message="tools are not supported for the detector",
-                type="NotImplementedError",
-                code=HTTPStatus.NOT_IMPLEMENTED.value,
+                error=ErrorInfo(
+                    message="tools are not supported for the detector",
+                    type="NotImplementedError",
+                    code=HTTPStatus.NOT_IMPLEMENTED.value,
+                )
             )
         return request
 
@@ -241,9 +244,11 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         # object would look different, and content would have to be aggregated.
         if chat_completion_request.stream:
             return ErrorResponse(
-                message="streaming is not supported for the detector",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message="streaming is not supported for the detector",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
         # Manually set logprobs to True to calculate score later on
@@ -271,9 +276,11 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
             # Users _may_ be able to correct some of these errors by changing the input
             # but the error message may not be directly user-comprehensible
             chat_response = ErrorResponse(
-                message=e.message or "Template error",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message=e.message or "Template error",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
         logger.debug("Raw chat completion response: %s", chat_response)
@@ -376,9 +383,11 @@ class ChatCompletionDetectionBase(OpenAIServingChat):
         # Return "not implemented" here since context analysis may not
         # generally apply to all models at this time
         return ErrorResponse(
-            message="context analysis is not supported for the detector",
-            type="NotImplementedError",
-            code=HTTPStatus.NOT_IMPLEMENTED.value,
+            error=ErrorInfo(
+                message="context analysis is not supported for the detector",
+                type="NotImplementedError",
+                code=HTTPStatus.NOT_IMPLEMENTED.value,
+            )
         )
 
     async def content_analysis(

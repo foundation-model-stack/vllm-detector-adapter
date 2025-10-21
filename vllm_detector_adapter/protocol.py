@@ -8,6 +8,7 @@ from typing_extensions import NotRequired, Required, TypedDict
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionResponse,
+    ErrorInfo,
     ErrorResponse,
 )
 
@@ -100,10 +101,12 @@ class ContentsDetectionResponseObject(BaseModel):
                 # A partial response could be considered in the future
                 # but that would likely not look like the current ErrorResponse
                 return ErrorResponse(
-                    message=f"Choice {i} from chat completion does not have content. \
+                    error=ErrorInfo(
+                        message=f"Choice {i} from chat completion does not have content. \
                         Consider updating input and/or parameters for detections.",
-                    type="BadRequestError",
-                    code=HTTPStatus.BAD_REQUEST.value,
+                        type="BadRequestError",
+                        code=HTTPStatus.BAD_REQUEST.value,
+                    )
                 )
 
         return detection_responses
@@ -222,9 +225,11 @@ class ChatDetectionRequest(BaseModel):
             # content
             if "content" not in message:
                 return ErrorResponse(
-                    message="message missing content",
-                    type="BadRequestError",
-                    code=HTTPStatus.BAD_REQUEST.value,
+                    error=ErrorInfo(
+                        message="message missing content",
+                        type="BadRequestError",
+                        code=HTTPStatus.BAD_REQUEST.value,
+                    )
                 )
             messages.append({"role": message["role"], "content": message["content"]})
 
@@ -240,9 +245,11 @@ class ChatDetectionRequest(BaseModel):
             )
         except ValidationError as e:
             return ErrorResponse(
-                message=repr(e.errors()[0]),
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message=repr(e.errors()[0]),
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
 
@@ -300,9 +307,11 @@ class GenerationDetectionRequest(BaseModel):
             )
         except ValidationError as e:
             return ErrorResponse(
-                message=repr(e.errors()[0]),
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message=repr(e.errors()[0]),
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
 
@@ -350,10 +359,12 @@ class DetectionResponse(RootModel):
                 # A partial response could be considered in the future
                 # but that would likely not look like the current ErrorResponse
                 return ErrorResponse(
-                    message=f"Choice {i} from chat completion does not have content. \
+                    error=ErrorInfo(
+                        message=f"Choice {i} from chat completion does not have content. \
                         Consider updating input and/or parameters for detections.",
-                    type="BadRequestError",
-                    code=HTTPStatus.BAD_REQUEST.value,
+                        type="BadRequestError",
+                        code=HTTPStatus.BAD_REQUEST.value,
+                    )
                 )
 
         return DetectionResponse(root=detection_responses)

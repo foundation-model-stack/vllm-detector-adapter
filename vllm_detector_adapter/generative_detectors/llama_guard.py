@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 # Third Party
 from fastapi import Request
-from vllm.entrypoints.openai.protocol import ErrorResponse
+from vllm.entrypoints.openai.protocol import ErrorInfo, ErrorResponse
 
 # Local
 from vllm_detector_adapter.generative_detectors.base import ChatCompletionDetectionBase
@@ -127,9 +127,11 @@ class LlamaGuard(ChatCompletionDetectionBase):
         # since explicitly overriding the conversation roles will result in an error.
         if "role_override" in request.detector_params:
             return ErrorResponse(
-                message="role_override is an invalid parameter for llama guard",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message="role_override is an invalid parameter for llama guard",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
         return await super().content_analysis(request, raw_request)

@@ -10,6 +10,7 @@ from typing_extensions import TypedDict
 from vllm.entrypoints.openai.protocol import (
     ChatCompletionRequest,
     ChatCompletionResponse,
+    ErrorInfo,
     ErrorResponse,
 )
 import orjson
@@ -160,9 +161,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             and "criteria_id" not in request.detector_params
         ):
             return ErrorResponse(
-                message="tools analysis is not supported without a given risk/criteria",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message="tools analysis is not supported without a given risk/criteria",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
         # Granite 3.2 and earlier
         if (
@@ -170,9 +173,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             and request.detector_params["risk_name"] not in self.TOOLS_RISKS
         ):
             return ErrorResponse(
-                message="tools analysis is not supported with given risk",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message="tools analysis is not supported with given risk",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
         # Granite 3.3+
         elif (
@@ -180,9 +185,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             and request.detector_params["criteria_id"] not in self.TOOLS_RISKS
         ):
             return ErrorResponse(
-                message="tools analysis is not supported with given criteria",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message="tools analysis is not supported with given criteria",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
         # (1) 'Flatten' the assistant message, extracting the functions in the tool_calls
@@ -227,16 +234,20 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # Error if no assistant message was found
         if not assistant_message or not assistant_message["content"]:
             return ErrorResponse(
-                message="no assistant message was provided with tool_calls for analysis",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message="no assistant message was provided with tool_calls for analysis",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
         # Error if no user message was found
         if not user_message or not user_message["content"]:
             return ErrorResponse(
-                message="no user message was provided with content for analysis",
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message="no user message was provided with content for analysis",
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
         # Warning if multiple assistant messages were found
         if assistant_message_count > 1:
@@ -291,9 +302,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             or "guardian_config" not in request.detector_params["chat_template_kwargs"]
         ):
             return ErrorResponse(
-                message=NO_RISK_NAME_MESSAGE,
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message=NO_RISK_NAME_MESSAGE,
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
         # Use risk name to determine message format
         if guardian_config := request.detector_params["chat_template_kwargs"][
@@ -306,9 +319,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         # Leaving off risk_name and criteria_id can lead to model/template errors
         if not risk_name:
             return ErrorResponse(
-                message=NO_RISK_NAME_MESSAGE,
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message=NO_RISK_NAME_MESSAGE,
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
         if len(request.context) > 1:
@@ -337,11 +352,13 @@ class GraniteGuardian(ChatCompletionDetectionBase):
         else:
             # Return error if risk names or criteria are not expected ones
             return ErrorResponse(
-                message="risk_name or criteria_id {} is not compatible with context analysis".format(
-                    risk_name
-                ),
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message="risk_name or criteria_id {} is not compatible with context analysis".format(
+                        risk_name
+                    ),
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
         # Try to pass all detector_params through as additional parameters to chat completions
@@ -354,9 +371,11 @@ class GraniteGuardian(ChatCompletionDetectionBase):
             )
         except ValidationError as e:
             return ErrorResponse(
-                message=repr(e.errors()[0]),
-                type="BadRequestError",
-                code=HTTPStatus.BAD_REQUEST.value,
+                error=ErrorInfo(
+                    message=repr(e.errors()[0]),
+                    type="BadRequestError",
+                    code=HTTPStatus.BAD_REQUEST.value,
+                )
             )
 
     def _extract_tag_info(
