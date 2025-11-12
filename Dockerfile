@@ -4,7 +4,7 @@
 # NOTE: The image generated out of this file should only be used in conjunction with a
 # compatible vllm image, otherwise it will throw error.
 
-ARG BASE_UBI_IMAGE_TAG=9.6
+ARG BASE_UBI_IMAGE_TAG=9.7
 ARG PYTHON_VERSION=3.12
 
 ### Build layer
