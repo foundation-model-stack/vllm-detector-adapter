@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: "Free up disk space"
+        uses: ./.github/actions/free-disk-space
       - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
