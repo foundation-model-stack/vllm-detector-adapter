@@ -11,6 +11,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - name: "Free up disk space"
+        uses: ./.github/actions/free-disk-space
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -18,7 +20,7 @@ jobs:
       - name: Get latest vllm tag
         id: latest-vllm-tag
         run: |
-          git fetch https://github.com/vllm-project/vllm.git --tags 
+          git fetch https://github.com/vllm-project/vllm.git --tags
           LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
           echo "LATEST_TAG=${LATEST_TAG:1}" >> $GITHUB_OUTPUT
       - name: Update vllm version to latest
