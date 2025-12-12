@@ -1,7 +1,7 @@
 # Standard
-from dataclasses import dataclass
-from typing import Optional
-from unittest.mock import patch
+from dataclasses import dataclass, field
+from typing import Any, Optional
+from unittest.mock import MagicMock, patch
 import asyncio
 
 # Third Party
@@ -49,17 +49,23 @@ class MockHFConfig:
 @dataclass
 class MockModelConfig:
     task = "generate"
+    runner_type = "generate"
     tokenizer = MODEL_NAME
     trust_remote_code = False
     tokenizer_mode = "auto"
     max_model_len = 100
     tokenizer_revision = None
-    embedding_mode = False
     multimodal_config = MultiModalConfig()
-    diff_sampling_param: Optional[dict] = None
     hf_config = MockHFConfig()
     logits_processor_pattern = None
+    logits_processors: list[str] | None = None
+    diff_sampling_param: dict | None = None
     allowed_local_media_path: str = ""
+    allowed_media_domains: list[str] | None = None
+    encoder_config = None
+    generation_config: str = "auto"
+    media_io_kwargs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    skip_tokenizer_init = False
 
     def get_diff_sampling_param(self):
         return self.diff_sampling_param or {}
@@ -78,10 +84,11 @@ async def _async_serving_detection_completion_init():
     """Initialize a chat completion base with string templates"""
     engine = MockEngine()
     engine.errored = False
-    model_config = await engine.get_model_config()
+    engine.model_config = MockModelConfig()
+    engine.input_processor = MagicMock()
+    engine.io_processor = MagicMock()
     models = OpenAIServingModels(
         engine_client=engine,
-        model_config=model_config,
         base_model_paths=BASE_MODEL_PATHS,
     )
 
@@ -89,7 +96,6 @@ async def _async_serving_detection_completion_init():
         task_template="hello {{user_text}}",
         output_template="bye {{text}}",
         engine_client=engine,
-        model_config=model_config,
         models=models,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,

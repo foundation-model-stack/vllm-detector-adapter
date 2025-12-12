@@ -4,7 +4,7 @@ import argparse
 import os
 
 # Third Party
-from vllm.utils import FlexibleArgumentParser, StoreBoolean
+from vllm.utils.argparse_utils import FlexibleArgumentParser
 
 
 class DetectorType(Enum):
@@ -14,6 +14,20 @@ class DetectorType(Enum):
     TEXT_GENERATION = auto()
     TEXT_CHAT = auto()
     TEXT_CONTEXT_DOC = auto()
+
+
+# This is taken from vLLM < 0.11.1 for backwards compatibility.
+# vLLM versions >=0.11.1 no longer include StoreBoolean.
+class StoreBoolean(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values.lower() == "true":
+            setattr(namespace, self.dest, True)
+        elif values.lower() == "false":
+            setattr(namespace, self.dest, False)
+        else:
+            raise ValueError(
+                f"Invalid boolean value: {values}. Expected 'true' or 'false'."
+            )
 
 
 # LocalEnvVarArgumentParser and dependent functions taken from
