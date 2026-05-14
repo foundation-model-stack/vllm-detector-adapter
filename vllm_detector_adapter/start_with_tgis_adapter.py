@@ -21,7 +21,7 @@ import traceback
 from vllm.entrypoints.launcher import serve_http
 from vllm.entrypoints.openai import api_server
 from vllm.entrypoints.openai.cli_args import make_arg_parser
-from vllm.utils import FlexibleArgumentParser
+from vllm.utils.argparse_utils import FlexibleArgumentParser
 import uvloop
 
 if TYPE_CHECKING:

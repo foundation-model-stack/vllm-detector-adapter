@@ -9,7 +9,6 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.datastructures import State
-from vllm.config import ModelConfig
 from vllm.engine.protocol import EngineClient
 from vllm.entrypoints.chat_utils import load_chat_template
 from vllm.entrypoints.launcher import serve_http
@@ -19,7 +18,10 @@ from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_se
 from vllm.entrypoints.openai.protocol import ErrorInfo, ErrorResponse
 from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
 from vllm.entrypoints.openai.tool_parsers import ToolParserManager
-from vllm.utils import FlexibleArgumentParser, is_valid_ipv6_address, set_ulimit
+from vllm.entrypoints.utils import process_lora_modules
+from vllm.reasoning import ReasoningParserManager
+from vllm.utils import is_valid_ipv6_address, set_ulimit
+from vllm.utils.argparse_utils import FlexibleArgumentParser
 from vllm.version import __version__ as VLLM_VERSION
 import uvloop
 
@@ -35,14 +37,6 @@ from vllm_detector_adapter.protocol import (
     GenerationDetectionRequest,
 )
 from vllm_detector_adapter.utils import LocalEnvVarArgumentParser
-
-try:
-    # Third Party
-    from vllm.entrypoints.openai.reasoning_parsers import ReasoningParserManager
-except ImportError:
-    # Third Party
-    from vllm.reasoning import ReasoningParserManager
-
 
 TIMEOUT_KEEP_ALIVE = 5  # seconds
 
@@ -61,20 +55,21 @@ def chat_detection(
 
 async def init_app_state_with_detectors(
     engine_client: EngineClient,
-    config,  # ModelConfig | VllmConfig
     state: State,
     args: Namespace,
 ) -> None:
     """Add detection capabilities to app state"""
+    vllm_config = engine_client.vllm_config
+
     if args.served_model_name is not None:
         served_model_names = args.served_model_name
     else:
         served_model_names = [args.model]
 
-    if args.disable_log_requests:
-        request_logger = None
-    else:
+    if args.enable_log_requests:
         request_logger = RequestLogger(max_log_len=args.max_log_len)
+    else:
+        request_logger = None
 
     base_model_paths = [
         BaseModelPath(name=name, model_path=args.model) for name in served_model_names
@@ -82,21 +77,24 @@ async def init_app_state_with_detectors(
 
     resolved_chat_template = load_chat_template(args.chat_template)
 
-    model_config = config
-    if type(config) != ModelConfig:  # VllmConfig
-        model_config = config.model_config
+    # Merge default_mm_loras into the static lora_modules
+    default_mm_loras = (
+        vllm_config.lora_config.default_mm_loras
+        if vllm_config.lora_config is not None
+        else {}
+    )
+    lora_modules = process_lora_modules(args.lora_modules, default_mm_loras)
 
     state.openai_serving_models = OpenAIServingModels(
         engine_client=engine_client,
-        model_config=model_config,
         base_model_paths=base_model_paths,
-        lora_modules=args.lora_modules,
+        lora_modules=lora_modules,
     )
 
     # Use vllm app state init
     # init_app_state became async in https://github.com/vllm-project/vllm/pull/11727
     # ref. https://github.com/opendatahub-io/vllm-tgis-adapter/pull/207
-    maybe_coroutine = api_server.init_app_state(engine_client, config, state, args)
+    maybe_coroutine = api_server.init_app_state(engine_client, state, args)
     if inspect.isawaitable(maybe_coroutine):
         await maybe_coroutine
 
@@ -107,7 +105,6 @@ async def init_app_state_with_detectors(
         args.task_template,
         args.output_template,
         engine_client,
-        model_config,
         state.openai_serving_models,
         args.response_role,
         request_logger=request_logger,
@@ -196,18 +193,7 @@ async def run_server(args, **uvicorn_kwargs) -> None:
                     content=err.model_dump(), status_code=HTTPStatus.BAD_REQUEST
                 )
 
-        # api_server.init_app_state takes vllm_config
-        # ref. https://github.com/vllm-project/vllm/pull/16572
-        if hasattr(engine_client, "get_vllm_config"):
-            vllm_config = await engine_client.get_vllm_config()
-            await init_app_state_with_detectors(
-                engine_client, vllm_config, app.state, args
-            )
-        else:
-            model_config = await engine_client.get_model_config()
-            await init_app_state_with_detectors(
-                engine_client, model_config, app.state, args
-            )
+        await init_app_state_with_detectors(engine_client, app.state, args)
 
         def _listen_addr(a: str) -> str:
             if is_valid_ipv6_address(a):
