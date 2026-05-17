@@ -51,13 +51,19 @@ HEALTHCHECK NONE
 
 ENV SHARED_PACKAGE_PATH="/shared_packages/app/"
 
+COPY scripts/copy_script.sh /app/
+
+RUN chmod +x /app/copy_script.sh
+
 # The entrypoint for this image is designed to follow its usage, i.e
 # to be used along with vllm image. Therefore, in this image, we
 # only copy the package(s) to a shared package path
 # NOTE: Along with this, one may need to adjust PYTHONPATH to call
 # this package, depending on setup.
 # Example: PYTHONPATH='${SHARED_PACKAGE_PATH}:${PYTHONPATH}'
-ENTRYPOINT ["/bin/bash", "-c", "cp -r /app/target_packages/*  ${SHARED_PACKAGE_PATH}" ]
+ENTRYPOINT ["/app/copy_script.sh"]
+
+CMD ["/bin/bash"]
 
 ### Release Layer (with vllm-tgis-adapter)
 FROM release as release_tgis_adapter
