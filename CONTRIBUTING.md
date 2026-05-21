@@ -7,7 +7,7 @@
 The following tools are required:
 
 - [git](https://git-scm.com)
-- [python](https://www.python.org) (v3.11+)
+- [python](https://www.python.org) (v3.14+)
 - [pip](https://pypi.org/project/pip/) (v23.0+)
 
 You can setup your dev environment using [tox](https://tox.wiki/en/latest/), an environment orchestrator which allows for setting up environments for and invoking builds, unit tests, formatting, linting, etc. Install tox with:
