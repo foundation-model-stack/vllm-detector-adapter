@@ -7,7 +7,7 @@ authors = [
 ]
 description = "A lightweight adapter layer that provides detector APIs on top of vllm"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 classifiers = ["Programming Language :: Python :: 3"]
 
 dependencies = ["orjson>=3.11.5,<3.12"]
