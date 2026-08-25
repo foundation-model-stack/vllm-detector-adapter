@@ -7,17 +7,28 @@ import asyncio
 
 # Third Party
 from vllm.config import MultiModalConfig
-from vllm.entrypoints.openai.protocol import (
+from vllm.entrypoints.openai.chat_completion.protocol import (
     ChatCompletionLogProb,
     ChatCompletionLogProbs,
     ChatCompletionLogProbsContent,
+    ChatCompletionRequest,
     ChatCompletionResponse,
     ChatCompletionResponseChoice,
     ChatMessage,
+)
+
+from vllm.entrypoints.openai.engine.protocol import (
     ErrorResponse,
     UsageInfo,
 )
-from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
+
+from vllm.entrypoints.openai.models.protocol import (
+    BaseModelPath,
+)
+
+from vllm.entrypoints.openai.models.serving import (
+    OpenAIServingModels,
+)
 import pytest
 import pytest_asyncio
 
@@ -72,8 +83,13 @@ class MockModelConfig:
 
 @dataclass
 class MockEngine:
+    model_config: MockModelConfig
+    renderer: object
+    io_processor: object
+    input_processor: object
+
     async def get_model_config(self):
-        return MockModelConfig()
+        return self.model_config
 
     async def get_tokenizer(self):
         return MockTokenizer()
@@ -81,12 +97,16 @@ class MockEngine:
 
 async def _llama_guard_init():
     """Initialize a llama guard"""
-    engine = MockEngine()
+    engine = MockEngine(
+        model_config=MockModelConfig(),
+        renderer=object(),
+        io_processor=object(),
+        input_processor=object(),
+    )
     engine.errored = False
     model_config = await engine.get_model_config()
     models = OpenAIServingModels(
         engine_client=engine,
-        model_config=model_config,
         base_model_paths=BASE_MODEL_PATHS,
     )
 
@@ -94,7 +114,7 @@ async def _llama_guard_init():
         task_template=None,
         output_template=None,
         engine_client=engine,
-        model_config=model_config,
+        #model_config=model_config,
         models=models,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,

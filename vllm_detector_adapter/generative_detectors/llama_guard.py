@@ -4,7 +4,10 @@ from typing import Optional, Union
 
 # Third Party
 from fastapi import Request
-from vllm.entrypoints.openai.protocol import ErrorInfo, ErrorResponse
+from vllm.entrypoints.openai.engine.protocol import (
+    ErrorInfo,
+    ErrorResponse,
+)
 
 # Local
 from vllm_detector_adapter.generative_detectors.base import ChatCompletionDetectionBase

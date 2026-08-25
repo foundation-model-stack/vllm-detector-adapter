@@ -5,11 +5,13 @@ from typing import Dict, List, Optional
 # Third Party
 from pydantic import BaseModel, Field, RootModel, ValidationError
 from typing_extensions import NotRequired, Required, TypedDict
-from vllm.entrypoints.openai.protocol import (
-    ChatCompletionRequest,
-    ChatCompletionResponse,
+from vllm.entrypoints.openai.engine.protocol import (
     ErrorInfo,
     ErrorResponse,
+)
+from vllm.entrypoints.openai.chat_completion.protocol import (
+    ChatCompletionRequest,
+    ChatCompletionResponse,
 )
 
 ##### [FMS] Detection API types #####
