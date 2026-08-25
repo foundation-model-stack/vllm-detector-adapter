@@ -91,7 +91,6 @@ async def _async_serving_detection_completion_init():
     model_config = await engine.get_model_config()
     models = OpenAIServingModels(
         engine_client=engine,
-        model_config=model_config,
         base_model_paths=BASE_MODEL_PATHS,
     )
 

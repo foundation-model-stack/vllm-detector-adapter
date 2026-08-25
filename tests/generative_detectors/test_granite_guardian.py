@@ -118,7 +118,6 @@ async def _granite_guardian_init():
     model_config = await engine.get_model_config()
     models = OpenAIServingModels(
         engine_client=engine,
-        model_config=model_config,
         base_model_paths=BASE_MODEL_PATHS,
     )
 
