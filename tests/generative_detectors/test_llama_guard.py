@@ -85,6 +85,8 @@ class MockModelConfig:
 class MockEngine:
     model_config: MockModelConfig
     renderer: object
+    io_processor: object
+    input_processor: object
 
     async def get_model_config(self):
         return self.model_config
@@ -98,6 +100,8 @@ async def _llama_guard_init():
     engine = MockEngine(
         model_config=MockModelConfig(),
         renderer=object(),
+        io_processor=object(),
+        input_processor=object(),
     )
     engine.errored = False
     model_config = await engine.get_model_config()
