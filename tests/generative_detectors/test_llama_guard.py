@@ -84,6 +84,7 @@ class MockModelConfig:
 @dataclass
 class MockEngine:
     model_config: MockModelConfig
+    renderer: object
 
     async def get_model_config(self):
         return self.model_config
@@ -94,7 +95,10 @@ class MockEngine:
 
 async def _llama_guard_init():
     """Initialize a llama guard"""
-    engine = MockEngine(model_config=MockModelConfig())
+    engine = MockEngine(
+        model_config=MockModelConfig(),
+        renderer=object(),
+    )
     engine.errored = False
     model_config = await engine.get_model_config()
     models = OpenAIServingModels(

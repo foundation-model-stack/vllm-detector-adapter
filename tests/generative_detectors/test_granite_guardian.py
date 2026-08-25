@@ -105,6 +105,7 @@ class MockModelConfig:
 @dataclass
 class MockEngine:
     model_config: MockModelConfig
+    renderer: object
 
     async def get_model_config(self):
         return self.model_config
@@ -115,7 +116,10 @@ class MockEngine:
 
 async def _granite_guardian_init():
     """Initialize a granite guardian"""
-    engine = MockEngine(model_config=MockModelConfig())
+    engine = MockEngine(
+        model_config=MockModelConfig(),
+        renderer=object(),
+    )
     engine.errored = False
     model_config = await engine.get_model_config()
     models = OpenAIServingModels(

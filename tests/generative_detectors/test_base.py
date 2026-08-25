@@ -78,6 +78,7 @@ class MockModelConfig:
 @dataclass
 class MockEngine:
     model_config: MockModelConfig
+    renderer: object
 
     async def get_model_config(self):
         return self.model_config
@@ -88,7 +89,10 @@ class MockEngine:
 
 async def _async_serving_detection_completion_init():
     """Initialize a chat completion base with string templates"""
-    engine = MockEngine(model_config=MockModelConfig())
+    engine = MockEngine(
+        model_config=MockModelConfig(),
+        renderer=object(),
+    )
     engine.errored = False
     model_config = await engine.get_model_config()
     models = OpenAIServingModels(
