@@ -9,13 +9,17 @@ import math
 # Third Party
 from fastapi import Request
 from jinja2.exceptions import TemplateError
-from vllm.entrypoints.openai.protocol import (
+from vllm.entrypoints.openai.chat_completion.protocol import (
     ChatCompletionRequest,
     ChatCompletionResponse,
+)
+
+from vllm.entrypoints.openai.engine.protocol import (
     ErrorInfo,
     ErrorResponse,
 )
-from vllm.entrypoints.openai.serving_chat import OpenAIServingChat
+
+from vllm.entrypoints.openai.chat_completion.serving import OpenAIServingChat
 import jinja2
 import torch
 
