@@ -114,7 +114,7 @@ async def _llama_guard_init():
         task_template=None,
         output_template=None,
         engine_client=engine,
-        model_config=model_config,
+        #model_config=model_config,
         models=models,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,

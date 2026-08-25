@@ -135,7 +135,7 @@ async def _granite_guardian_init():
         task_template=None,
         output_template=None,
         engine_client=engine,
-        model_config=model_config,
+        #model_config=model_config,
         models=models,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,

@@ -108,7 +108,7 @@ async def _async_serving_detection_completion_init():
         task_template="hello {{user_text}}",
         output_template="bye {{text}}",
         engine_client=engine,
-        model_config=model_config,
+        #model_config=model_config,
         models=models,
         response_role="assistant",
         chat_template=CHAT_TEMPLATE,
