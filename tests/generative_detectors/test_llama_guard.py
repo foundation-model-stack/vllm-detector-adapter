@@ -7,17 +7,28 @@ import asyncio
 
 # Third Party
 from vllm.config import MultiModalConfig
-from vllm.entrypoints.openai.protocol import (
+from vllm.entrypoints.openai.chat_completion.protocol import (
     ChatCompletionLogProb,
     ChatCompletionLogProbs,
     ChatCompletionLogProbsContent,
+    ChatCompletionRequest,
     ChatCompletionResponse,
     ChatCompletionResponseChoice,
     ChatMessage,
+)
+
+from vllm.entrypoints.openai.engine.protocol import (
     ErrorResponse,
     UsageInfo,
 )
-from vllm.entrypoints.openai.serving_models import BaseModelPath, OpenAIServingModels
+
+from vllm.entrypoints.openai.models.protocol import (
+    BaseModelPath,
+)
+
+from vllm.entrypoints.openai.models.serving import (
+    OpenAIServingModels,
+)
 import pytest
 import pytest_asyncio
 
