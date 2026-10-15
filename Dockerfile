@@ -55,7 +55,14 @@ RUN --mount=type=bind,source=scripts/image_hardening,target=/scripts \
     \
     echo "Removing packages added by remediation:"; \
     cat /tmp/packages-added-by-remediation.txt; \
-    xargs -r microdnf remove -y < /tmp/packages-added-by-remediation.txt; \
+    printf '%s\n' \
+        '[main]' \
+        'protected_packages=' \
+        'clean_requirements_on_remove=False' \
+        > /tmp/remediation-dnf.conf; \
+    xargs -r microdnf --config=/tmp/remediation-dnf.conf remove -y \
+        < /tmp/packages-added-by-remediation.txt; \
+    rm -f /tmp/remediation-dnf.conf; \
     microdnf clean all; \
     \
     rm -f /tmp/packages-before-remediation.txt \
@@ -97,7 +104,14 @@ RUN --mount=type=bind,source=scripts/image_hardening,target=/scripts \
     \
     echo "Removing packages added by remediation:"; \
     cat /tmp/packages-added-by-remediation.txt; \
-    xargs -r microdnf remove -y < /tmp/packages-added-by-remediation.txt; \
+    printf '%s\n' \
+        '[main]' \
+        'protected_packages=' \
+        'clean_requirements_on_remove=False' \
+        > /tmp/remediation-dnf.conf; \
+    xargs -r microdnf --config=/tmp/remediation-dnf.conf remove -y \
+        < /tmp/packages-added-by-remediation.txt; \
+    rm -f /tmp/remediation-dnf.conf; \
     microdnf clean all; \
     \
     rm -f /tmp/packages-before-remediation.txt \
