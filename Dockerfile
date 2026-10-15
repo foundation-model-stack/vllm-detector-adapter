@@ -65,10 +65,27 @@ FROM release as release_tgis_adapter
 COPY --from=build_tgis_adapter --chown=1001 /app/target_packages /app/target_packages
 
 # Image hardening
-RUN --mount=type=bind,source=scripts/image_hardening,target=scripts \
-    sh scripts/installRemediationTools.sh && \
-    sh scripts/remediation-script.sh && \
-    sh scripts/removeRemediationTools.sh
+RUN --mount=type=bind,source=scripts/image_hardening,target=/scripts \
+    set -eu; \
+    rpm -qa --qf '%{NAME}\n' | sort -u > /tmp/packages-before-remediation.txt; \
+    \
+    sh /scripts/installRemediationTools.sh; \
+    sh /scripts/remediation-script.sh; \
+    \
+    rpm -qa --qf '%{NAME}\n' | sort -u > /tmp/packages-after-remediation.txt; \
+    comm -13 \
+        /tmp/packages-before-remediation.txt \
+        /tmp/packages-after-remediation.txt \
+        > /tmp/packages-added-by-remediation.txt; \
+    \
+    echo "Removing packages added by remediation:"; \
+    cat /tmp/packages-added-by-remediation.txt; \
+    xargs -r microdnf remove -y < /tmp/packages-added-by-remediation.txt; \
+    microdnf clean all; \
+    \
+    rm -f /tmp/packages-before-remediation.txt \
+          /tmp/packages-after-remediation.txt \
+          /tmp/packages-added-by-remediation.txt
 
 USER 1001
 
